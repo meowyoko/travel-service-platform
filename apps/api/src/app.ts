@@ -10,6 +10,15 @@ import {
 } from "./auth/session-routes.js";
 import type { ApiConfig } from "./config.js";
 import type { Database } from "./db/client.js";
+import {
+  createAdminReadRoutes,
+  createEmployeeReadRoutes,
+} from "./core/read-routes.js";
+import {
+  createAdminWriteRoutes,
+  createEmployeeWriteRoutes,
+} from "./core/write-routes.js";
+import { registerErrorHandler } from "./errors.js";
 
 interface BuildAppOptions {
   db: Database;
@@ -40,6 +49,7 @@ export function buildApp({
 }: BuildAppOptions) {
   const app = Fastify({ logger }).withTypeProvider<TypeBoxTypeProvider>();
 
+  registerErrorHandler(app);
   app.register(cookie);
 
   app.get(
@@ -69,6 +79,18 @@ export function buildApp({
     prefix: "/api/admin",
   });
   app.register(createEmployeeSessionRoutes({ db, config }), {
+    prefix: "/api/employee",
+  });
+  app.register(createAdminReadRoutes(db), {
+    prefix: "/api/admin",
+  });
+  app.register(createEmployeeReadRoutes(db), {
+    prefix: "/api/employee",
+  });
+  app.register(createAdminWriteRoutes(db), {
+    prefix: "/api/admin",
+  });
+  app.register(createEmployeeWriteRoutes(db), {
     prefix: "/api/employee",
   });
 

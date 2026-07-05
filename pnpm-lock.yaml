@@ -150,6 +150,9 @@ importers:
       '@sinclair/typebox':
         specifier: ^0.34.41
         version: 0.34.49
+      '@travel/domain':
+        specifier: workspace:*
+        version: link:../domain
 
   packages/domain: {}
 

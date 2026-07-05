@@ -56,6 +56,38 @@ function extractCookie(
   return header.split(";", 1)[0]!;
 }
 
+async function loginAdmin(
+  identifier = "leader",
+  password = "123456",
+): Promise<string> {
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/admin/session",
+    payload: { identifier, password },
+  });
+  assert.equal(response.statusCode, 200);
+  return extractCookie(
+    response.headers["set-cookie"],
+    ADMIN_SESSION_COOKIE,
+  );
+}
+
+async function loginEmployee(
+  identifier: string,
+  password = "123456",
+): Promise<string> {
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/employee/session",
+    payload: { identifier, password },
+  });
+  assert.equal(response.statusCode, 200);
+  return extractCookie(
+    response.headers["set-cookie"],
+    EMPLOYEE_SESSION_COOKIE,
+  );
+}
+
 before(async () => {
   await database.pool.query("drop schema if exists drizzle cascade");
   await database.pool.query("drop schema public cascade");
@@ -269,6 +301,250 @@ test("Session 持久化到 PostgreSQL，可跨 API 实例恢复", async () => {
     .from(sessions);
   const persistedSessions = sessionCountRows[0]?.value ?? 0;
   assert(persistedSessions > 0);
+});
+
+test("普通运营账号只能读取已授权的管理端资源", async () => {
+  const cookie = await loginAdmin("operator");
+
+  const productsResponse = await app.inject({
+    method: "GET",
+    url: "/api/admin/products",
+    headers: { cookie },
+  });
+  assert.equal(productsResponse.statusCode, 200);
+
+  const groupsResponse = await app.inject({
+    method: "GET",
+    url: "/api/admin/groups",
+    headers: { cookie },
+  });
+  assert.equal(groupsResponse.statusCode, 403);
+  assert.equal(groupsResponse.json().code, "FORBIDDEN");
+});
+
+test("PostgreSQL API 跑通完整闭环且并发确认只扣减一次", async () => {
+  const adminCookie = await loginAdmin();
+  const suffix = String(Date.now());
+  const startDate = new Date().toISOString().slice(0, 10);
+  const departure = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+  const returnDate = new Date(departure.getTime() + 3 * 24 * 60 * 60 * 1000);
+  const departureDate = departure.toISOString().slice(0, 10);
+  const returnDateText = returnDate.toISOString().slice(0, 10);
+  const suitableMonth = Number(departureDate.slice(5, 7));
+
+  const groupResponse = await app.inject({
+    method: "POST",
+    url: "/api/admin/groups",
+    headers: { cookie: adminCookie },
+    payload: {
+      name: `闭环测试集团-${suffix}`,
+      contactName: "测试联系人",
+      contactPhone: "13800009999",
+      cooperationStartDate: startDate,
+    },
+  });
+  assert.equal(groupResponse.statusCode, 201);
+  const groupId = groupResponse.json().group.id as string;
+
+  const employeePhone = `139${suffix.slice(-8)}`;
+  const employeeResponse = await app.inject({
+    method: "POST",
+    url: "/api/admin/employees",
+    headers: { cookie: adminCookie },
+    payload: {
+      name: "闭环测试员工",
+      phone: employeePhone,
+      password: "123456",
+      groupId,
+      department: "测试部",
+    },
+  });
+  assert.equal(employeeResponse.statusCode, 201);
+  const employeeId = employeeResponse.json().employee.id as string;
+
+  const grantResponse = await app.inject({
+    method: "POST",
+    url: "/api/admin/quota-grants",
+    headers: { cookie: adminCookie },
+    payload: {
+      employeeIds: [employeeId],
+      amount: 5000,
+      reason: "闭环测试额度发放",
+    },
+  });
+  assert.equal(grantResponse.statusCode, 201);
+  assert.equal(grantResponse.json().quotaTransactions[0].balanceAfter, 5000);
+
+  const productResponse = await app.inject({
+    method: "POST",
+    url: "/api/admin/products",
+    headers: { cookie: adminCookie },
+    payload: {
+      name: `闭环测试商品-${suffix}`,
+      type: "travel",
+      summary: "用于验证 PostgreSQL 双端闭环。",
+      coverImage: "/images/products/mountain-retreat.png",
+      quotaReference: { min: 1200, max: 1800 },
+      serviceDescription: "提供住宿与基础交通协调。",
+      notes: "测试商品。",
+      visibility: {
+        scope: "specified_groups",
+        groupIds: [groupId],
+      },
+      travelDetails: {
+        destination: "测试目的地",
+        destinationHighlights: "环境安静。",
+        suitableTravelMonths: [suitableMonth],
+        recommendedStayDays: "4天",
+        serviceScope: "住宿与基础交通协调。",
+      },
+    },
+  });
+  assert.equal(productResponse.statusCode, 201, productResponse.body);
+  const productId = productResponse.json().product.id as string;
+
+  const publishResponse = await app.inject({
+    method: "POST",
+    url: `/api/admin/products/${productId}/publish`,
+    headers: { cookie: adminCookie },
+  });
+  assert.equal(publishResponse.statusCode, 200);
+
+  const employeeCookie = await loginEmployee(employeePhone);
+  const visibleProductsResponse = await app.inject({
+    method: "GET",
+    url: "/api/employee/products",
+    headers: { cookie: employeeCookie },
+  });
+  assert.equal(visibleProductsResponse.statusCode, 200);
+  assert(
+    visibleProductsResponse
+      .json()
+      .serviceProducts.some(
+        (product: { id: string }) => product.id === productId,
+      ),
+  );
+
+  const intentResponse = await app.inject({
+    method: "POST",
+    url: "/api/employee/intents",
+    headers: { cookie: employeeCookie },
+    payload: {
+      productId,
+      expectedTravelDate: departureDate,
+      expectedStayDays: 4,
+      companionCount: 0,
+      preferredTransport: "高铁",
+      needsPickup: true,
+    },
+  });
+  assert.equal(intentResponse.statusCode, 201);
+  const intentId = intentResponse.json().intent.id as string;
+  assert.equal(intentResponse.json().intent.status, "pending_follow_up");
+
+  const adminIntentsResponse = await app.inject({
+    method: "GET",
+    url: "/api/admin/intents",
+    headers: { cookie: adminCookie },
+  });
+  assert.equal(adminIntentsResponse.statusCode, 200);
+  assert(
+    adminIntentsResponse
+      .json()
+      .personalIntents.some(
+        (intent: { id: string }) => intent.id === intentId,
+      ),
+  );
+
+  const followUpResponse = await app.inject({
+    method: "PATCH",
+    url: `/api/admin/intents/${intentId}/follow-up`,
+    headers: { cookie: adminCookie },
+    payload: {
+      status: "communicating",
+      assigneeAccountId: "operator-leader",
+      internalNote: "闭环测试跟进。",
+    },
+  });
+  assert.equal(followUpResponse.statusCode, 200);
+
+  const convertResponse = await app.inject({
+    method: "POST",
+    url: `/api/admin/intents/${intentId}/orders`,
+    headers: { cookie: adminCookie },
+    payload: {
+      assigneeAccountId: "operator-leader",
+      plannedQuotaDeduction: 1200,
+      servicePlan: "4天住宿与高铁站接送。",
+      departureDate,
+      returnDate: returnDateText,
+      transport: "高铁",
+      accommodation: "测试合作酒店",
+      pickupService: "高铁站接送",
+    },
+  });
+  assert.equal(convertResponse.statusCode, 201);
+  const orderId = convertResponse.json().order.id as string;
+  assert.equal(convertResponse.json().order.status, "pending_confirmation");
+
+  const confirmResponses = await Promise.all([
+    app.inject({
+      method: "POST",
+      url: `/api/admin/orders/${orderId}/confirm`,
+      headers: { cookie: adminCookie },
+    }),
+    app.inject({
+      method: "POST",
+      url: `/api/admin/orders/${orderId}/confirm`,
+      headers: { cookie: adminCookie },
+    }),
+  ]);
+  assert.deepEqual(
+    confirmResponses.map(({ statusCode }) => statusCode).sort(),
+    [200, 409],
+  );
+
+  const employeeOrdersResponse = await app.inject({
+    method: "GET",
+    url: "/api/employee/orders",
+    headers: { cookie: employeeCookie },
+  });
+  const confirmedOrder = employeeOrdersResponse
+    .json()
+    .personalOrders.find((order: { id: string }) => order.id === orderId);
+  assert(confirmedOrder);
+  assert.equal(confirmedOrder.deductedQuota, 1200);
+  assert.equal(confirmedOrder.finalConsumedQuota, 1200);
+
+  const employeeQuotaResponse = await app.inject({
+    method: "GET",
+    url: "/api/employee/quota",
+    headers: { cookie: employeeCookie },
+  });
+  assert.equal(employeeQuotaResponse.statusCode, 200);
+  assert.equal(employeeQuotaResponse.json().quotaAccount.availableBalance, 3800);
+  const deductions = employeeQuotaResponse
+    .json()
+    .quotaTransactions.filter(
+      (transaction: { relatedOrderId?: string }) =>
+        transaction.relatedOrderId === orderId,
+    );
+  assert.equal(deductions.length, 1);
+  assert.equal(deductions[0].amount, -1200);
+  assert.equal("operator" in deductions[0], false);
+  assert.equal("internalNote" in deductions[0], false);
+
+  const ownIntentsResponse = await app.inject({
+    method: "GET",
+    url: "/api/employee/intents",
+    headers: { cookie: employeeCookie },
+  });
+  assert.deepEqual(
+    ownIntentsResponse
+      .json()
+      .personalIntents.map((intent: { employeeId: string }) => intent.employeeId),
+    [employeeId],
+  );
 });
 
 test("Seed 拒绝重复初始化已有数据的数据库", async () => {
