@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>疗养旅游服务平台 业务流程说明 v0.2</title>
+  <style>
+    :root {
+      --color-bg-primary: #fcf7f1;
+      --color-bg-secondary: #f7efe5;
+      --color-surface: rgba(255, 250, 244, 0.92);
+      --color-border: #dac7b6;
+      --color-text: #253143;
+      --color-muted: #667085;
+      --color-accent: #8b5b48;
+      --color-accent-soft: #ead9c8;
+      --color-line: linear-gradient(90deg, rgba(139, 91, 72, 0), rgba(139, 91, 72, 0.85), rgba(37, 49, 67, 0));
+      --shadow-soft: 0 18px 40px rgba(37, 49, 67, 0.08);
+      --shadow-card: 0 12px 28px rgba(37, 49, 67, 0.10);
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-pill: 999px;
+    }
+
+    @page {
+      size: A4;
+      margin: 18mm 16mm 18mm 16mm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Noto Sans SC", "Microsoft YaHei UI", sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(139, 91, 72, 0.10), transparent 28%),
+        linear-gradient(180deg, #fffaf4 0%, #fbf5ee 55%, #f8f0e6 100%);
+      color: var(--color-text);
+      line-height: 1.72;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .page {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 16px 42px;
+    }
+
+    .cover {
+      min-height: 92vh;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      padding: 20px 4px 12px;
+    }
+
+    .cover-card {
+      background: linear-gradient(145deg, rgba(255, 250, 244, 0.96), rgba(247, 239, 229, 0.96));
+      border: 1px solid rgba(218, 199, 182, 0.75);
+      border-radius: 34px;
+      box-shadow: var(--shadow-soft);
+      padding: 44px 42px 38px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cover-card::before {
+      content: "";
+      position: absolute;
+      inset: -120px -80px auto auto;
+      width: 360px;
+      height: 360px;
+      background: radial-gradient(circle, rgba(139, 91, 72, 0.16), transparent 68%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border: 1px solid rgba(139, 91, 72, 0.18);
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.62);
+      color: var(--color-accent);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      width: fit-content;
+    }
+
+    .cover h1 {
+      margin: 26px 0 16px;
+      font-family: "Noto Serif SC", "Source Han Serif SC", serif;
+      font-size: 34px;
+      line-height: 1.3;
+      letter-spacing: 0.02em;
+    }
+
+    .cover-lead {
+      max-width: 720px;
+      font-size: 16px;
+      color: var(--color-muted);
+    }
+
+    .meta-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 34px;
+    }
+
+    .meta-card {
+      padding: 18px 18px 16px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.68);
+      border: 1px solid rgba(218, 199, 182, 0.75);
+    }
+
+    .meta-card span {
+      display: block;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      color: var(--color-muted);
+      text-transform: uppercase;
+    }
+
+    .meta-card strong {
+      display: block;
+      margin-top: 10px;
+      font-size: 18px;
+      line-height: 1.45;
+    }
+
+    .toc-card {
+      margin-top: 24px;
+      padding: 28px 28px 22px;
+      border-radius: 30px;
+      background: rgba(255, 250, 244, 0.86);
+      border: 1px solid rgba(218, 199, 182, 0.75);
+      box-shadow: var(--shadow-card);
+      break-after: page;
+    }
+
+    .toc-card h2 {
+      margin: 0 0 20px;
+      font-family: "Noto Serif SC", "Source Han Serif SC", serif;
+      font-size: 26px;
+    }
+
+    .toc-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px 18px;
+    }
+
+    .toc-grid ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .toc-grid li a {
+      text-decoration: none;
+      color: var(--color-text);
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(218, 199, 182, 0.55);
+    }
+
+    .toc-grid li span {
+      color: var(--color-accent);
+      font-size: 13px;
+      min-width: 24px;
+    }
+
+    .chapter {
+      margin: 0 0 26px;
+      padding: 32px 28px 28px;
+      border-radius: 28px;
+      background: rgba(255, 250, 244, 0.84);
+      border: 1px solid rgba(218, 199, 182, 0.72);
+      box-shadow: var(--shadow-card);
+      break-inside: avoid;
+    }
+
+    .chapter + .chapter {
+      margin-top: 22px;
+    }
+
+    .chapter-kicker {
+      color: var(--color-accent);
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      font-family: "Noto Serif SC", "Source Han Serif SC", serif;
+      font-size: 27px;
+      line-height: 1.35;
+    }
+
+    p {
+      margin: 0 0 14px;
+      color: var(--color-text);
+      font-size: 15px;
+    }
+
+    .divider {
+      height: 1px;
+      margin: 24px 0;
+      background: var(--color-line);
+    }
+
+    .diagram-card {
+      margin: 22px 0 14px;
+      padding: 18px 18px 12px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(218, 199, 182, 0.7);
+      box-shadow: var(--shadow-soft);
+      break-inside: avoid;
+    }
+
+    .diagram-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 20px;
+    }
+
+    .diagram-card figcaption {
+      text-align: center;
+      margin-top: 12px;
+      color: var(--color-muted);
+      font-size: 13px;
+    }
+
+    .number-list,
+    .bullet-list {
+      margin: 8px 0 14px 0;
+      padding-left: 22px;
+    }
+
+    .number-list li,
+    .bullet-list li {
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+
+    .callout {
+      margin: 18px 0 14px;
+      padding: 16px 18px 12px;
+      border-left: 4px solid var(--color-accent);
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(234, 217, 200, 0.56), rgba(255, 250, 244, 0.8));
+    }
+
+    .callout-title {
+      font-size: 13px;
+      color: var(--color-accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    .callout ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .quote {
+      color: var(--color-accent);
+    }
+
+    .footer-note {
+      margin-top: 26px;
+      padding: 18px 20px;
+      color: var(--color-muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media print {
+      .page {
+        padding: 0;
+      }
+      .cover {
+        min-height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="cover">
+      <div class="cover-card">
+        <div>
+          <div class="eyebrow">Business Process Booklet</div>
+          <h1>疗养旅游服务平台 业务流程说明 v0.2</h1>
+          <p class="cover-lead">这是一份针对疗养旅游服务平台第一阶段业务模式的视觉化说明稿。内容包括平台定位、账号关系、个人疗养、团体项目、额度使用与服务方案展示逻辑，并将原始流程图重绘为统一风格的高质量图示。</p>
+          <div class="meta-strip">
+            <div class="meta-card">
+              <span>Document Type</span>
+              <strong>业务流程说明书</strong>
+            </div>
+            <div class="meta-card">
+              <span>Version</span>
+              <strong>v0.2</strong>
+            </div>
+            <div class="meta-card">
+              <span>Output</span>
+              <strong>版式重排 + SVG 流程图</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-note">Prepared in a warm editorial style for internal review and presentation.</div>
+    </section>
+
+    <section class="toc-card">
+      <h2>目录</h2>
+      <div class="toc-grid">
+        <ul><li><a href="#section-1"><span>01</span><strong>一、平台是做什么的</strong></a></li>
+<li><a href="#section-2"><span>02</span><strong>二、整体业务流程</strong></a></li>
+<li><a href="#section-3"><span>03</span><strong>三、集团与员工账号</strong></a></li>
+<li><a href="#section-4"><span>04</span><strong>四、个人疗养服务</strong></a></li>
+<li><a href="#section-5"><span>05</span><strong>五、意向提交规则</strong></a></li>
+<li><a href="#section-6"><span>06</span><strong>六、集团团体项目</strong></a></li>
+<li><a href="#section-7"><span>07</span><strong>七、个人订单和团体项目有什么区别</strong></a></li>
+<li><a href="#section-8"><span>08</span><strong>八、额度怎么用</strong></a></li>
+<li><a href="#section-9"><span>09</span><strong>九、服务方案怎么展示</strong></a></li>
+<li><a href="#section-10"><span>10</span><strong>十、第一阶段核心规则</strong></a></li></ul>
+      </div>
+    </section>
+
+    <section class="chapter" id="section-1">
+<div class="chapter-kicker">Section 01</div>
+<h2>一、平台是做什么的</h2>
+<p>这是我们为合作集团搭建的疗养旅游服务平台，主要做这几件事：</p>
+<ol class="number-list">
+<li>让集团员工浏览可选的疗养服务方案</li>
+<li>让员工表达出行意向</li>
+<li>让我们的工作人员在后台跟进意向、管理订单</li>
+<li>管理集团统一组织的团体疗养或团建活动</li>
+<li>管理员工的疗养额度</li>
+</ol>
+<p>平台不涉及线上付款。集团和我们的费用结算都在线下完成，系统只负责记录额度和订单。</p>
+<div class="divider"></div>
+</section>
+<section class="chapter" id="section-2">
+<div class="chapter-kicker">Section 02</div>
+<h2>二、整体业务流程</h2>
+<figure class="diagram-card"><img src="svg/diagram-01.svg" alt="流程图"/><figcaption>流程图重绘版</figcaption></figure>
+<div class="divider"></div>
+</section>
+<section class="chapter" id="section-3">
+<div class="chapter-kicker">Section 03</div>
+<h2>三、集团与员工账号</h2>
+<figure class="diagram-card"><img src="svg/diagram-02.svg" alt="流程图"/><figcaption>流程图重绘版</figcaption></figure>
+<p>说明：</p>
+<ul class="bullet-list">
+<li>员工不能自己注册账号，由我们根据集团提供的名单统一创建。</li>
+<li>员工登录后，只能看到所属集团对应的服务方案，不同集团看到的内容可以不同。</li>
+<li>不同员工的额度可以不一样。</li>
+</ul>
+<div class="divider"></div>
+</section>
+<section class="chapter" id="section-4">
+<div class="chapter-kicker">Section 04</div>
+<h2>四、个人疗养服务</h2>
+<p>个人疗养服务面向员工个人出行。</p>
+<p>这类服务不像传统旅游团那样安排&quot;第几天去哪玩什么&quot;，而是展示目的地的特色、适合出行的季节、交通、酒店、餐饮、接送等服务能力，员工根据自己的兴趣选择。</p>
+<figure class="diagram-card"><img src="svg/diagram-03.svg" alt="流程图"/><figcaption>流程图重绘版</figcaption></figure>
+<p>说明：</p>
+<ul class="bullet-list">
+<li>提交意向不扣额度，只是表达出行兴趣，不代表报名成功。</li>
+<li>具体安排由工作人员线下沟通确认。</li>
+<li>确认后才会生成正式订单并记录额度使用。</li>
+</ul>
+<div class="divider"></div>
+</section>
+<section class="chapter" id="section-5">
+<div class="chapter-kicker">Section 05</div>
+<h2>五、意向提交规则</h2>
+<p>为了避免员工一次提交太多意向，系统会做一些限制：</p>
+<figure class="diagram-card"><img src="svg/diagram-04.svg" alt="流程图"/><figcaption>流程图重绘版</figcaption></figure>
+<p>说明：</p>
+<ul class="bullet-list">
+<li>提交意向不扣额度。</li>
+<li>每个员工同时最多保留 2 个待处理的意向（第一阶段）。</li>
+<li>&quot;待处理&quot;是指还在等待跟进或正在沟通中的意向。</li>
+<li>已撤销、已关闭、已转订单的意向不占名额。</li>
+</ul>
+<div class="divider"></div>
+</section>
+<section class="chapter" id="section-6">
+<div class="chapter-kicker">Section 06</div>
+<h2>六、集团团体项目</h2>
+<p>团体项目用于集团统一组织的疗养、团建或集体出行。</p>
+<p>这类活动不是员工个人发起的，而是集团和我们线下商定后，由我们在后台创建。</p>
+<figure class="diagram-card"><img src="svg/diagram-05.svg" alt="流程图"/><figcaption>流程图重绘版</figcaption></figure>
+<p>说明：</p>
+<ul class="bullet-list">
+<li>团体项目由后台创建，员工不需要先提交意向。</li>
+<li>员工被加入后可以查看项目详情，但不能自行取消、退出或修改。</li>
+<li>如果员工临时有事不能参加，由集团或我们线下确认后，再在后台调整。</li>
+</ul>
+<div class="divider"></div>
+</section>
+<section class="chapter" id="section-7">
+<div class="chapter-kicker">Section 07</div>
+<h2>七、个人订单和团体项目有什么区别</h2>
+<figure class="diagram-card"><img src="svg/diagram-06.svg" alt="流程图"/><figcaption>流程图重绘版</figcaption></figure>
+<p>简单来说：</p>
+<ul class="bullet-list">
+<li><strong>个人订单</strong>：员工自己感兴趣，先提交意向，我们沟通确认后生成订单。员工可以撤销意向。</li>
+<li><strong>团体项目</strong>：集团统一组织，由后台直接创建，员工只能查看，不能自己操作。</li>
+</ul>
+<div class="divider"></div>
+</section>
+<section class="chapter" id="section-8">
+<div class="chapter-kicker">Section 08</div>
+<h2>八、额度怎么用</h2>
+<figure class="diagram-card"><img src="svg/diagram-07.svg" alt="流程图"/><figcaption>流程图重绘版</figcaption></figure>
+<p>说明：</p>
+<ul class="bullet-list">
+<li>额度由我们根据集团的规则分配给员工。</li>
+<li>员工可以随时查看自己的额度余额。</li>
+<li>提交意向不扣额度，订单确认后才记录使用。</li>
+<li>团体项目的额度使用也由后台记录。</li>
+<li>如果订单取消或员工退出等特殊情况，后台可以退回额度。</li>
+</ul>
+<div class="divider"></div>
+</section>
+<section class="chapter" id="section-9">
+<div class="chapter-kicker">Section 09</div>
+<h2>九、服务方案怎么展示</h2>
+<figure class="diagram-card"><img src="svg/diagram-08.svg" alt="流程图"/><figcaption>流程图重绘版</figcaption></figure>
+<p>说明：</p>
+<ul class="bullet-list">
+<li>每个方案可以设置适宜出行的时间段，员工只能在这个范围内选择。</li>
+<li>每个方案可以指定哪些集团能看到，员工只能看到自己所属集团对应的方案。</li>
+<li>已上架的方案不能直接修改，需要先下架再编辑。</li>
+</ul>
+<div class="divider"></div>
+</section>
+<section class="chapter" id="section-10">
+<div class="chapter-kicker">Section 10</div>
+<h2>十、第一阶段核心规则</h2>
+<ol class="number-list">
+<li>本平台是我们自营的，不涉及多个供应商。</li>
+<li>员工账号由后台统一创建，员工不能自己注册。</li>
+<li>不处理线上支付，只记录额度。</li>
+<li>提交意向不扣额度，确认订单后才记录使用。</li>
+<li>个人疗养服务重点展示目的地、交通、住宿、餐饮和接送能力，不写每天的详细行程。</li>
+<li>团体项目由后台创建，员工只能查看。</li>
+<li>员工不能自行取消、退出或修改团体项目。</li>
+<li>不同集团看到的服务方案可以不同。</li>
+<li>第一阶段以展示方案、收集意向、后台记录和人工跟进为主。</li>
+</ol>
+</section>
+  </div>
+</body>
+</html>

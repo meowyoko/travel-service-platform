@@ -1,0 +1,24 @@
+{
+  "name": "travel-service-platform",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.26.2",
+  "scripts": {
+    "dev:admin": "pnpm --filter @travel/admin dev",
+    "dev:employee": "pnpm --filter @travel/employee dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "tsx --test packages/mock-data/src/mock-data.test.ts packages/application/src/platform-service.test.ts",
+    "verify:mock": "tsx scripts/verify-mock.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.6",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="2762" viewBox="0 0 680 2762">
+
+    <defs>
+      <linearGradient id="cardFill" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#fffaf4"/>
+        <stop offset="100%" stop-color="#f7efe5"/>
+      </linearGradient>
+      <linearGradient id="diamondFill" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#f5ede4"/>
+        <stop offset="100%" stop-color="#f0dfd0"/>
+      </linearGradient>
+      <filter id="softShadow" x="-20%" y="-20%" width="140%" height="160%">
+        <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#253143" flood-opacity="0.14"/>
+      </filter>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c4f3f"/>
+      </marker>
+    </defs>
+    
+<rect width="680" height="2762" rx="30" fill="#fcf7f1"/>
+<text x="340.0" y="44" text-anchor="middle" font-size="22" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="700">额度使用逻辑</text>
+<path d="M 178.0 122.0 C 178.0 239.0, 186.0 239.0, 186.0 356.0" fill="none" stroke="#7c4f3f" stroke-width="3.5" marker-end="url(#arrow)" stroke-linecap="round"/>
+<path d="M 186.0 444.0 C 186.0 560.0, 186.0 560.0, 186.0 676.0" fill="none" stroke="#7c4f3f" stroke-width="3.5" marker-end="url(#arrow)" stroke-linecap="round"/>
+<path d="M 186.0 764.0 C 186.0 881.0, 178.0 881.0, 178.0 998.0" fill="none" stroke="#7c4f3f" stroke-width="3.5" marker-end="url(#arrow)" stroke-linecap="round"/>
+<path d="M 178.0 1082.0 C 178.0 1200.0, 170.0 1200.0, 170.0 1318.0" fill="none" stroke="#7c4f3f" stroke-width="3.5" marker-end="url(#arrow)" stroke-linecap="round"/>
+<path d="M 170.0 1402.0 C 170.0 1520.0, 178.0 1520.0, 178.0 1638.0" fill="none" stroke="#7c4f3f" stroke-width="3.5" marker-end="url(#arrow)" stroke-linecap="round"/>
+<path d="M 178.0 1722.0 C 178.0 1837.0, 188.0 1837.0, 188.0 1952.0" fill="none" stroke="#7c4f3f" stroke-width="3.5" marker-end="url(#arrow)" stroke-linecap="round"/>
+<path d="M 188.0 2048.0 C 188.0 2163.0, 186.0 2163.0, 186.0 2278.0" fill="none" stroke="#7c4f3f" stroke-width="3.5" marker-end="url(#arrow)" stroke-linecap="round"/>
+<g transform="translate(166.0,2137.0)"><rect width="42" height="32" rx="16" fill="#ffffff" stroke="#d5c3b5" stroke-width="1.5"/><text x="21.0" y="21" text-anchor="middle" font-size="15" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#7c4f3f" font-weight="700">否</text></g>
+<path d="M 188.0 2048.0 C 188.0 2163.0, 446.0 2163.0, 446.0 2278.0" fill="none" stroke="#7c4f3f" stroke-width="3.5" marker-end="url(#arrow)" stroke-linecap="round"/>
+<g transform="translate(296.0,2137.0)"><rect width="42" height="32" rx="16" fill="#ffffff" stroke="#d5c3b5" stroke-width="1.5"/><text x="21.0" y="21" text-anchor="middle" font-size="15" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#7c4f3f" font-weight="700">是</text></g>
+<path d="M 446.0 2362.0 C 446.0 2480.0, 170.0 2480.0, 170.0 2598.0" fill="none" stroke="#7c4f3f" stroke-width="3.5" marker-end="url(#arrow)" stroke-linecap="round"/>
+<path d="M 186.0 444.0 C 186.0 561.0, 446.0 561.0, 446.0 678.0" fill="none" stroke="#7c4f3f" stroke-width="3.5" marker-end="url(#arrow)" stroke-linecap="round"/>
+<path d="M 446.0 762.0 C 446.0 880.0, 430.0 880.0, 430.0 998.0" fill="none" stroke="#7c4f3f" stroke-width="3.5" marker-end="url(#arrow)" stroke-linecap="round"/>
+<path d="M 430.0 1082.0 C 430.0 1199.0, 430.0 1199.0, 430.0 1316.0" fill="none" stroke="#7c4f3f" stroke-width="3.5" marker-end="url(#arrow)" stroke-linecap="round"/>
+<rect x="80.0" y="38.0" width="196" height="84" rx="22" fill="url(#cardFill)" stroke="#d7c4b2" stroke-width="2" filter="url(#softShadow)"/>
+<text x="178.0" y="80" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">集团确认合作规则</text>
+<rect x="80.0" y="356.0" width="212" height="88" rx="22" fill="url(#cardFill)" stroke="#d7c4b2" stroke-width="2" filter="url(#softShadow)"/>
+<text x="186.0" y="388" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">我们在后台给员工分配</text>
+<text x="186.0" y="412" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">额度</text>
+<rect x="80.0" y="676.0" width="212" height="88" rx="22" fill="url(#cardFill)" stroke="#d7c4b2" stroke-width="2" filter="url(#softShadow)"/>
+<text x="186.0" y="708" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">员工可以查看自己的额</text>
+<text x="186.0" y="732" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">度余额</text>
+<rect x="80.0" y="998.0" width="196" height="84" rx="22" fill="url(#cardFill)" stroke="#d7c4b2" stroke-width="2" filter="url(#softShadow)"/>
+<text x="178.0" y="1040" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">员工提交个人意向</text>
+<rect x="80.0" y="1318.0" width="180" height="84" rx="22" fill="url(#cardFill)" stroke="#d7c4b2" stroke-width="2" filter="url(#softShadow)"/>
+<text x="170.0" y="1360" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">不扣额度</text>
+<rect x="80.0" y="1638.0" width="196" height="84" rx="22" fill="url(#cardFill)" stroke="#d7c4b2" stroke-width="2" filter="url(#softShadow)"/>
+<text x="178.0" y="1680" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">工作人员线下沟通</text>
+<polygon points="188.0,1952.0 296.0,2000 188.0,2048.0 80.0,2000" fill="url(#diamondFill)" stroke="#b67a66" stroke-width="2.5" filter="url(#softShadow)"/>
+<text x="188.0" y="2000" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">确认生成订单吗</text>
+<rect x="80.0" y="2278.0" width="212" height="84" rx="22" fill="url(#cardFill)" stroke="#d7c4b2" stroke-width="2" filter="url(#softShadow)"/>
+<text x="186.0" y="2320" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">意向保留、关闭或撤销</text>
+<rect x="356.0" y="2278.0" width="180" height="84" rx="22" fill="url(#cardFill)" stroke="#d7c4b2" stroke-width="2" filter="url(#softShadow)"/>
+<text x="446.0" y="2320" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">生成个人订单</text>
+<rect x="80.0" y="2598.0" width="180" height="84" rx="22" fill="url(#cardFill)" stroke="#d7c4b2" stroke-width="2" filter="url(#softShadow)"/>
+<text x="170.0" y="2640" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">记录额度使用</text>
+<rect x="356.0" y="678.0" width="180" height="84" rx="22" fill="url(#cardFill)" stroke="#d7c4b2" stroke-width="2" filter="url(#softShadow)"/>
+<text x="446.0" y="720" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">集团团体项目</text>
+<rect x="340.0" y="998.0" width="180" height="84" rx="22" fill="url(#cardFill)" stroke="#d7c4b2" stroke-width="2" filter="url(#softShadow)"/>
+<text x="430.0" y="1040" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">添加参与员工</text>
+<rect x="324.0" y="1316.0" width="212" height="88" rx="22" fill="url(#cardFill)" stroke="#d7c4b2" stroke-width="2" filter="url(#softShadow)"/>
+<text x="430.0" y="1348" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">根据集团确认的结果记</text>
+<text x="430.0" y="1372" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="Microsoft YaHei UI, Noto Sans SC, sans-serif" fill="#253143" font-weight="600">录额度使用</text>
+</svg>

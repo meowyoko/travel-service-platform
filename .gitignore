@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.vite/
+coverage/
+*.local
+*.tsbuildinfo
+*.log
+_tmp_*
+
+# 本地 Agent 配置
+.agents/
+.codex/
+
+# 当前仅用于查看 Stitch 原型的临时浏览器数据
+tmp-edge-profile/
+
+# UI 原型、演示录屏及参考资源，不纳入源码仓库
+供应商端截图/
+管理端UI/
+员工端UI/
+项目录屏演示/
+resource/
+员工端UI.zip
+stitch_ui.zip
+福康会员服务共享平台操作手册-企业端（2025版）(1).pdf

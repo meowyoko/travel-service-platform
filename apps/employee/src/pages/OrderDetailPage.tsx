@@ -1,0 +1,167 @@
+import {
+  ArrowLeft,
+  BedDouble,
+  BusFront,
+  CalendarDays,
+  MapPin,
+  Plane,
+  Star,
+  WalletCards,
+} from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+
+import { useEmployeeData } from "../context/EmployeeDataContext";
+import { formatDate, formatQuota } from "../lib/format";
+
+const ORDER_STATUS_LABELS = {
+  pending_confirmation: "待确认",
+  confirmed: "已确认",
+  waiting_for_service: "待出行",
+  in_service: "服务中",
+  completed: "已完成",
+  cancelled: "已取消",
+} as const;
+
+export function OrderDetailPage() {
+  const { orderId } = useParams();
+  const navigate = useNavigate();
+  const { personalOrders, personalReviews } = useEmployeeData();
+  const order = personalOrders.find(({ id }) => id === orderId);
+
+  if (!order) {
+    return (
+      <main className="order-detail-page order-detail-unavailable">
+        <strong>订单不存在或不属于当前员工</strong>
+        <button onClick={() => navigate("/orders")} type="button">
+          返回我的订单
+        </button>
+      </main>
+    );
+  }
+
+  const snapshot = order.productSnapshot;
+  const reviewed = personalReviews.some(
+    ({ orderId: reviewOrderId }) => reviewOrderId === order.id,
+  );
+
+  return (
+    <main className="order-detail-page">
+      <header className="detail-topbar">
+        <button
+          aria-label="返回我的订单"
+          onClick={() => navigate("/orders")}
+          type="button"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <strong>订单详情</strong>
+        <span aria-hidden="true" />
+      </header>
+
+      <section className="order-detail-summary">
+        <div>
+          <span className={`order-status ${order.status}`}>
+            {ORDER_STATUS_LABELS[order.status]}
+          </span>
+          <small>{order.orderNumber}</small>
+        </div>
+        <h1>{snapshot.name}</h1>
+        <p>{snapshot.summary}</p>
+        <span>
+          <MapPin size={15} />
+          {snapshot.travelDetails?.destination ?? "服务地点待确认"}
+        </span>
+      </section>
+
+      <section className="order-detail-section">
+        <h2>行程安排</h2>
+        <div className="order-arrangement-list">
+          <div>
+            <CalendarDays size={18} />
+            <span>
+              <small>确认出行时间</small>
+              <strong>
+                {order.departureDate && order.returnDate
+                  ? `${formatDate(order.departureDate)} 至 ${formatDate(
+                      order.returnDate,
+                    )}`
+                  : "待工作人员确认"}
+              </strong>
+            </span>
+          </div>
+          <div>
+            <Plane size={18} />
+            <span>
+              <small>往返方式</small>
+              <strong>{order.transport || "待确认"}</strong>
+            </span>
+          </div>
+          <div>
+            <BedDouble size={18} />
+            <span>
+              <small>住宿安排</small>
+              <strong>{order.accommodation || "待确认"}</strong>
+            </span>
+          </div>
+          <div>
+            <BusFront size={18} />
+            <span>
+              <small>接送服务</small>
+              <strong>{order.pickupService || "待确认"}</strong>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="order-detail-section">
+        <h2>专属服务方案</h2>
+        <p className="order-service-plan">{order.servicePlan}</p>
+        <div className="order-snapshot-copy">
+          <h3>服务说明</h3>
+          <p>{snapshot.serviceDescription}</p>
+          <h3>注意事项</h3>
+          <p>{snapshot.notes}</p>
+        </div>
+      </section>
+
+      <section className="order-detail-section">
+        <h2>额度明细</h2>
+        <div className="order-quota-panel">
+          <WalletCards size={20} />
+          <dl>
+            <div>
+              <dt>预计额度</dt>
+              <dd>{formatQuota(order.plannedQuotaDeduction)}</dd>
+            </div>
+            <div>
+              <dt>已扣额度</dt>
+              <dd>{formatQuota(order.deductedQuota)}</dd>
+            </div>
+            <div>
+              <dt>已退回额度</dt>
+              <dd>{formatQuota(order.refundedQuota)}</dd>
+            </div>
+            <div>
+              <dt>最终消耗</dt>
+              <dd>{formatQuota(order.finalConsumedQuota)}</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      {order.status === "completed" ? (
+        <section className="order-review-state">
+          <Star size={18} />
+          <span>
+            <strong>{reviewed ? "该订单已评价" : "该订单可以评价"}</strong>
+            <small>
+              {reviewed
+                ? "评价内容可在后续“我的评价”中查看。"
+                : "评价表单将在下一阶段接入。"}
+            </small>
+          </span>
+        </section>
+      ) : null}
+    </main>
+  );
+}

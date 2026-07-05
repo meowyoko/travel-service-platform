@@ -1,0 +1,19 @@
+{
+  "name": "@travel/application",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@travel/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@travel/mock-data": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}
