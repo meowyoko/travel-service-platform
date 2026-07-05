@@ -6,6 +6,9 @@ coverage/
 *.tsbuildinfo
 *.log
 _tmp_*
+.env
+.env.*
+!.env.example
 
 # 本地 Agent 配置
 .agents/

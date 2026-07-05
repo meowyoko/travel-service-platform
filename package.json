@@ -4,11 +4,16 @@
   "private": true,
   "packageManager": "pnpm@10.26.2",
   "scripts": {
+    "dev:api": "pnpm --filter @travel/api dev",
     "dev:admin": "pnpm --filter @travel/admin dev",
     "dev:employee": "pnpm --filter @travel/employee dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "tsx --test packages/mock-data/src/mock-data.test.ts packages/application/src/platform-service.test.ts",
+    "test:api": "pnpm --filter @travel/api test",
+    "db:generate": "pnpm --filter @travel/api db:generate",
+    "db:migrate": "pnpm --filter @travel/api db:migrate",
+    "db:seed": "pnpm --filter @travel/api db:seed",
     "verify:mock": "tsx scripts/verify-mock.ts"
   },
   "devDependencies": {
