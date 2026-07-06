@@ -1,12 +1,15 @@
 import type { IntentStatus } from "@travel/domain";
+import type { PersonalIntentDto } from "@travel/contracts";
 import { CalendarDays, Clock3 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { EmployeeBottomNav } from "../components/EmployeeBottomNav";
 import { EmployeeSummaryHeader } from "../components/EmployeeSummaryHeader";
 import { IntentOrderTabs } from "../components/IntentOrderTabs";
+import { LoadMoreButton } from "../components/LoadMoreButton";
 import { useEmployeeData } from "../context/EmployeeDataContext";
+import { useLoadMore } from "../hooks/useLoadMore";
 import { formatDate, formatDateTime } from "../lib/format";
 
 const STATUS_META: Record<
@@ -32,12 +35,15 @@ export function IntentsPage() {
   const [withdrawTargetId, setWithdrawTargetId] = useState<string | null>(
     null,
   );
-  const intents = useMemo(
-    () =>
-      [...personalIntents].sort((left, right) =>
-        right.createdAt.localeCompare(left.createdAt),
-      ),
-    [personalIntents],
+  const {
+    items: intents,
+    hasMore,
+    isLoading,
+    loadMore,
+  } = useLoadMore<PersonalIntentDto>(
+    "/api/employee/intents",
+    {},
+    personalIntents,
   );
   const withdrawTarget = personalIntents.find(
     ({ id }) => id === withdrawTargetId,
@@ -152,6 +158,11 @@ export function IntentsPage() {
             </button>
           </div>
         )}
+        <LoadMoreButton
+          hasMore={hasMore}
+          isLoading={isLoading}
+          onClick={loadMore}
+        />
       </section>
 
       {withdrawTarget ? (

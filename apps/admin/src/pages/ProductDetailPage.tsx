@@ -5,8 +5,10 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { Modal } from "../components/Modal";
 import { MonthPicker } from "../components/MonthPicker";
+import { ProductImageField } from "../components/ProductImageField";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAdminData } from "../context/AdminDataContext";
+import { uploadProductImage } from "../lib/api";
 import { formatDate, formatQuota } from "../lib/format";
 
 const productTypeLabel = {
@@ -83,13 +85,18 @@ export function ProductDetailPage() {
   }
   const selectedProduct = product;
 
-  function buildUpdateInput(
+  async function buildUpdateInput(
     event: FormEvent<HTMLFormElement>,
-  ): UpdateServiceProductInput {
+  ): Promise<UpdateServiceProductInput> {
     const form = new FormData(event.currentTarget);
+    const currentProduct = selectedProduct;
+    const coverImageFile = form.get("coverImageFile");
+    const coverImage =
+      coverImageFile instanceof File && coverImageFile.size > 0
+        ? await uploadProductImage(coverImageFile)
+        : currentProduct.coverImage;
     const maxQuota = String(form.get("quotaMax") ?? "").trim();
     const groupIds = form.getAll("groupIds").map(String);
-    const currentProduct = selectedProduct;
     const useLockedValues = usage.hasBusinessRecords;
 
     return {
@@ -99,7 +106,7 @@ export function ProductDetailPage() {
         : String(form.get("name")),
       type: useLockedValues ? currentProduct.type : editProductType,
       summary: String(form.get("summary")),
-      coverImage: String(form.get("coverImage")),
+      coverImage,
       ...(currentProduct.gallery
         ? { gallery: structuredClone(currentProduct.gallery) }
         : {}),
@@ -174,18 +181,27 @@ export function ProductDetailPage() {
   async function handleUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    const input = buildUpdateInput(event);
-    const descriptionChanged =
-      selectedProduct.serviceDescription !== input.serviceDescription.trim() ||
-      selectedProduct.notes !== input.notes.trim() ||
-      selectedProduct.travelDetails?.serviceScope !==
-        input.travelDetails?.serviceScope.trim();
+    try {
+      const input = await buildUpdateInput(event);
+      const descriptionChanged =
+        selectedProduct.serviceDescription !==
+          input.serviceDescription.trim() ||
+        selectedProduct.notes !== input.notes.trim() ||
+        selectedProduct.travelDetails?.serviceScope !==
+          input.travelDetails?.serviceScope.trim();
 
-    if (usage.hasBusinessRecords && descriptionChanged) {
-      setPendingUpdate(input);
-      return;
+      if (usage.hasBusinessRecords && descriptionChanged) {
+        setPendingUpdate(input);
+        return;
+      }
+      await saveUpdate(input);
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "上传商品首图失败",
+      );
     }
-    await saveUpdate(input);
   }
 
   async function changeStatus() {
@@ -358,7 +374,7 @@ export function ProductDetailPage() {
         <form className="form-grid" id="update-product-form" onSubmit={handleUpdate}>
           <label className="field field--wide"><span>商品名称</span><input defaultValue={product.name} disabled={immutableDisabled} name="name" required /></label>
           <label className="field"><span>商品类型</span><select disabled={immutableDisabled} name="type" onChange={(event) => setEditProductType(event.target.value as keyof typeof productTypeLabel)} value={editProductType}>{Object.entries(productTypeLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <label className="field"><span>商品主图</span><input defaultValue={product.coverImage} name="coverImage" required /></label>
+          <ProductImageField currentImage={product.coverImage} />
           <label className="field"><span>额度参考下限</span><input defaultValue={product.quotaReference?.min} disabled={immutableDisabled} min="1" name="quotaMin" required type="number" /></label>
           <label className="field"><span>额度参考上限</span><input defaultValue={product.quotaReference?.max} disabled={immutableDisabled} min="1" name="quotaMax" type="number" /></label>
           <label className="field field--wide"><span>商品简介</span><textarea defaultValue={product.summary} name="summary" required rows={2} /></label>

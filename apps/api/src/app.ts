@@ -1,8 +1,12 @@
 import cookie from "@fastify/cookie";
+import multipart from "@fastify/multipart";
+import fastifyStatic from "@fastify/static";
 import { Type } from "@fastify/type-provider-typebox";
 import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import Fastify, { type FastifyServerOptions } from "fastify";
 import { sql } from "drizzle-orm";
+import { mkdirSync } from "node:fs";
+import { resolve } from "node:path";
 
 import {
   createAdminSessionRoutes,
@@ -20,11 +24,14 @@ import {
 } from "./core/write-routes.js";
 import { createAdminExtendedRoutes } from "./core/extended-routes.js";
 import { createContextRoutes } from "./core/context-routes.js";
+import { createUploadRoutes } from "./core/upload-routes.js";
 import { registerErrorHandler } from "./errors.js";
 
 interface BuildAppOptions {
   db: Database;
-  config: Pick<ApiConfig, "sessionCookieSecure" | "sessionTtlDays">;
+  config: Pick<ApiConfig, "sessionCookieSecure" | "sessionTtlDays"> & {
+    uploadDir?: string;
+  };
   logger?: FastifyServerOptions["logger"];
 }
 
@@ -50,9 +57,17 @@ export function buildApp({
   logger = false,
 }: BuildAppOptions) {
   const app = Fastify({ logger }).withTypeProvider<TypeBoxTypeProvider>();
+  const uploadRoot = resolve(config.uploadDir || "./data/uploads");
 
   registerErrorHandler(app);
   app.register(cookie);
+  app.register(multipart);
+  mkdirSync(uploadRoot, { recursive: true });
+  app.register(fastifyStatic, {
+    root: uploadRoot,
+    prefix: "/uploads/",
+    decorateReply: false,
+  });
 
   app.get(
     "/api/health",
@@ -100,6 +115,9 @@ export function buildApp({
   });
   app.register(createContextRoutes(db), {
     prefix: "/api",
+  });
+  app.register(createUploadRoutes(db, uploadRoot), {
+    prefix: "/api/admin/uploads",
   });
 
   return app;

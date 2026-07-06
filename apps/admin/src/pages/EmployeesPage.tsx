@@ -7,11 +7,14 @@ import {
   UserRoundCheck,
   UsersRound,
 } from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useState } from "react";
+import type { AdminEmployeeDto } from "@travel/contracts";
 
 import { Modal } from "../components/Modal";
+import { Pagination } from "../components/Pagination";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAdminData } from "../context/AdminDataContext";
+import { usePaginatedList } from "../hooks/usePaginatedList";
 import { formatQuota } from "../lib/format";
 
 export function EmployeesPage() {
@@ -37,21 +40,24 @@ export function EmployeesPage() {
   const [groupFilter, setGroupFilter] = useState("all");
   const [error, setError] = useState("");
 
-  const filteredEmployees = useMemo(
-    () =>
-      data.employees.filter((employee) => {
-        const matchesQuery =
-          employee.name.includes(query.trim()) ||
-          employee.phone.includes(query.trim()) ||
-          employee.employeeNumber?.includes(query.trim());
-        const matchesGroup =
-          groupFilter === "all" || employee.groupId === groupFilter;
-        return matchesQuery && matchesGroup;
-      }),
-    [data.employees, groupFilter, query],
+  const {
+    items: filteredEmployees,
+    pagination,
+    setPage,
+  } = usePaginatedList<AdminEmployeeDto>(
+    "/api/admin/employees",
+    {
+      query: query.trim() || undefined,
+      groupId: groupFilter === "all" ? undefined : groupFilter,
+    },
+    data,
   );
-  const editingEmployee = data.employees.find(({ id }) => id === editingId);
-  const deletingEmployee = data.employees.find(({ id }) => id === deletingId);
+  const editingEmployee = filteredEmployees.find(
+    ({ id }) => id === editingId,
+  );
+  const deletingEmployee = filteredEmployees.find(
+    ({ id }) => id === deletingId,
+  );
   const deletingEmployeeHasOrders = data.personalOrders.some(
     ({ employeeId }) => employeeId === deletingId,
   );
@@ -270,7 +276,7 @@ export function EmployeesPage() {
             <UsersRound size={20} />
           </div>
           <span>员工总数</span>
-          <strong>{data.employees.length}</strong>
+          <strong>{pagination.total}</strong>
           <small>后台已录入账号</small>
         </article>
         <article className="metric-card">
@@ -316,7 +322,7 @@ export function EmployeesPage() {
             <h2>员工列表</h2>
           </div>
           <span className="record-count">
-            显示 {filteredEmployees.length} 名员工
+            共 {pagination.total} 名员工
           </span>
         </div>
 
@@ -400,6 +406,7 @@ export function EmployeesPage() {
             </tbody>
           </table>
         </div>
+        <Pagination meta={pagination} onChange={setPage} />
       </section>
 
       <Modal

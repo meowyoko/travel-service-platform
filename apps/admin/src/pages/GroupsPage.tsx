@@ -1,9 +1,12 @@
 import { Building2, Plus, UsersRound } from "lucide-react";
 import { type FormEvent, useState } from "react";
+import type { GroupDto } from "@travel/contracts";
 
 import { Modal } from "../components/Modal";
+import { Pagination } from "../components/Pagination";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAdminData } from "../context/AdminDataContext";
+import { usePaginatedList } from "../hooks/usePaginatedList";
 import { formatDate } from "../lib/format";
 
 const groupStatus = {
@@ -20,6 +23,11 @@ export function GroupsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [error, setError] = useState("");
   const activeGroups = data.groups.filter(({ status }) => status === "active");
+  const {
+    items: groups,
+    pagination,
+    setPage,
+  } = usePaginatedList<GroupDto>("/api/admin/groups", {}, data);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -46,8 +54,8 @@ export function GroupsPage() {
     }
   }
 
-  const editingGroup = data.groups.find(({ id }) => id === editingId);
-  const deletingGroup = data.groups.find(({ id }) => id === deletingId);
+  const editingGroup = groups.find(({ id }) => id === editingId);
+  const deletingGroup = groups.find(({ id }) => id === deletingId);
   const deletingEmployeeCount = data.employees.filter(
     ({ groupId }) => groupId === deletingId,
   ).length;
@@ -159,7 +167,7 @@ export function GroupsPage() {
           <div>
             <h2>集团列表</h2>
           </div>
-          <span className="record-count">共 {data.groups.length} 个集团</span>
+          <span className="record-count">共 {pagination.total} 个集团</span>
         </div>
 
         <div className="table-scroll">
@@ -175,7 +183,7 @@ export function GroupsPage() {
               </tr>
             </thead>
             <tbody>
-              {data.groups.map((group) => {
+              {groups.map((group) => {
                 const status = groupStatus[group.status];
                 const employeeCount = data.employees.filter(
                   ({ groupId }) => groupId === group.id,
@@ -237,6 +245,7 @@ export function GroupsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination meta={pagination} onChange={setPage} />
       </section>
 
       <Modal

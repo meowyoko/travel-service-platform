@@ -10,11 +10,17 @@ import {
   WalletCards,
 } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
+import type {
+  AdminEmployeeDto,
+  QuotaTransactionDto,
+} from "@travel/contracts";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { Modal } from "../components/Modal";
+import { Pagination } from "../components/Pagination";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAdminData } from "../context/AdminDataContext";
+import { usePaginatedList } from "../hooks/usePaginatedList";
 import { formatDate, formatQuota } from "../lib/format";
 
 const transactionMeta = {
@@ -67,7 +73,7 @@ export function GroupQuotaPage() {
       ))].sort(),
     [groupEmployees],
   );
-  const filteredEmployees = useMemo(
+  const matchingEmployees = useMemo(
     () =>
       groupEmployees.filter((employee) => {
         const matchesQuery =
@@ -80,6 +86,29 @@ export function GroupQuotaPage() {
         return matchesQuery && matchesDepartment;
       }),
     [departmentFilter, groupEmployees, query],
+  );
+  const {
+    items: pagedEmployees,
+    pagination: employeePagination,
+    setPage: setEmployeePage,
+  } = usePaginatedList<AdminEmployeeDto>(
+    "/api/admin/employees",
+    {
+      query: query.trim() || undefined,
+      groupId: selectedGroupId || undefined,
+      department:
+        departmentFilter === "all" ? undefined : departmentFilter,
+    },
+    data,
+  );
+  const {
+    items: pagedTransactions,
+    pagination: transactionPagination,
+    setPage: setTransactionPage,
+  } = usePaginatedList<QuotaTransactionDto>(
+    "/api/admin/quota-transactions",
+    { groupId: selectedGroupId || undefined },
+    data,
   );
   const groupAccounts = data.quotaAccounts.filter((account) =>
     groupEmployees.some(({ id }) => id === account.employeeId),
@@ -351,7 +380,7 @@ export function GroupQuotaPage() {
                 className="button button--secondary"
                 disabled={departmentFilter === "all"}
                 onClick={() =>
-                  selectEmployees(filteredEmployees.map(({ id }) => id))
+                  selectEmployees(matchingEmployees.map(({ id }) => id))
                 }
                 type="button"
               >
@@ -389,15 +418,15 @@ export function GroupQuotaPage() {
                       <input
                         aria-label="选择当前筛选员工"
                         checked={
-                          filteredEmployees.length > 0 &&
-                          filteredEmployees
+                          pagedEmployees.length > 0 &&
+                          pagedEmployees
                             .filter(({ status }) => status === "active")
                             .every(({ id }) => selectedEmployeeIds.has(id))
                         }
                         onChange={(event) =>
                           event.target.checked
                             ? selectEmployees(
-                                filteredEmployees.map(({ id }) => id),
+                                pagedEmployees.map(({ id }) => id),
                               )
                             : setSelectedEmployeeIds(new Set())
                         }
@@ -415,7 +444,7 @@ export function GroupQuotaPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEmployees.map((employee) => {
+                  {pagedEmployees.map((employee) => {
                     const account = data.quotaAccounts.find(
                       ({ employeeId }) => employeeId === employee.id,
                     );
@@ -493,6 +522,10 @@ export function GroupQuotaPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              meta={employeePagination}
+              onChange={setEmployeePage}
+            />
           </section>
         </>
       ) : (
@@ -507,15 +540,11 @@ export function GroupQuotaPage() {
         <div className="content-card__header">
           <h2>最近额度流水</h2>
           <span className="record-count">
-            共 {data.quotaTransactions.length} 条流水
+            共 {transactionPagination.total} 条流水
           </span>
         </div>
         <div className="transaction-list">
-          {[...data.quotaTransactions]
-            .sort((left, right) =>
-              right.occurredAt.localeCompare(left.occurredAt),
-            )
-            .map((transaction) => {
+          {pagedTransactions.map((transaction) => {
               const employee = data.employees.find(
                 ({ id }) => id === transaction.employeeId,
               );
@@ -545,6 +574,10 @@ export function GroupQuotaPage() {
               );
             })}
         </div>
+        <Pagination
+          meta={transactionPagination}
+          onChange={setTransactionPage}
+        />
       </section>
 
       <Modal

@@ -1,9 +1,12 @@
 import { Search } from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useState } from "react";
+import type { PersonalIntentDto } from "@travel/contracts";
 
 import { Modal } from "../components/Modal";
+import { Pagination } from "../components/Pagination";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAdminData } from "../context/AdminDataContext";
+import { usePaginatedList } from "../hooks/usePaginatedList";
 import { addCalendarDays, formatDate } from "../lib/format";
 
 const intentStatus = {
@@ -28,34 +31,22 @@ export function IntentsPage() {
     ({ status }) => status === "active",
   );
 
-  const intents = useMemo(
-    () =>
-      data.personalIntents.filter((intent) => {
-        const employee = data.employees.find(
-          ({ id }) => id === intent.employeeId,
-        );
-        const product = data.serviceProducts.find(
-          ({ id }) => id === intent.productId,
-        );
-        const matchesQuery =
-          employee?.name.includes(query.trim()) ||
-          product?.name.includes(query.trim());
-        const matchesStatus =
-          statusFilter === "all" || intent.status === statusFilter;
-        return matchesQuery && matchesStatus;
-      }),
-    [
-      data.employees,
-      data.personalIntents,
-      data.serviceProducts,
-      query,
-      statusFilter,
-    ],
+  const {
+    items: intents,
+    pagination,
+    setPage,
+  } = usePaginatedList<PersonalIntentDto>(
+    "/api/admin/intents",
+    {
+      query: query.trim() || undefined,
+      status: statusFilter === "all" ? undefined : statusFilter,
+    },
+    data,
   );
-  const processingIntent = data.personalIntents.find(
+  const processingIntent = intents.find(
     ({ id }) => id === processingId,
   );
-  const convertingIntent = data.personalIntents.find(
+  const convertingIntent = intents.find(
     ({ id }) => id === convertingId,
   );
 
@@ -184,7 +175,7 @@ export function IntentsPage() {
       <section className="content-card">
         <div className="content-card__header">
           <h2>意向列表</h2>
-          <span className="record-count">共 {intents.length} 条意向</span>
+          <span className="record-count">共 {pagination.total} 条意向</span>
         </div>
         <div className="table-scroll">
           <table>
@@ -265,6 +256,7 @@ export function IntentsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination meta={pagination} onChange={setPage} />
       </section>
 
       <Modal

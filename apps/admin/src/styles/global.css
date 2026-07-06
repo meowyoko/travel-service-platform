@@ -775,6 +775,73 @@ tbody tr:last-child td {
   gap: var(--space-2);
 }
 
+.product-image-field__picker {
+  align-items: center;
+  border: 1px dashed #b8c5c2;
+  border-radius: 0.75rem;
+  display: flex;
+  gap: 1rem;
+  min-height: 7.5rem;
+  padding: 0.75rem;
+}
+
+.product-image-field__picker img,
+.product-image-field__empty {
+  align-items: center;
+  background: #f3f7f6;
+  border-radius: 0.5rem;
+  display: flex;
+  height: 6rem;
+  justify-content: center;
+  object-fit: cover;
+  width: 9rem;
+}
+
+.product-image-field__empty {
+  color: #667a75;
+  flex-direction: column;
+  font-size: 0.8125rem;
+  gap: 0.35rem;
+}
+
+.product-image-field__input {
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+}
+
+.product-image-field small {
+  color: #71817d;
+}
+
+.pagination {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding: 1rem 1.25rem;
+}
+
+.pagination button {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0 0.85rem;
+}
+
+.pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.pagination span {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
 .field--wide {
   grid-column: 1 / -1;
 }

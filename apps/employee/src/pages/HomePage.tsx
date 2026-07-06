@@ -1,36 +1,30 @@
 import { CalendarDays, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import type { ServiceProductDto } from "@travel/contracts";
 
 import { EmployeeBottomNav } from "../components/EmployeeBottomNav";
 import { EmployeeSummaryHeader } from "../components/EmployeeSummaryHeader";
+import { LoadMoreButton } from "../components/LoadMoreButton";
 import { useEmployeeData } from "../context/EmployeeDataContext";
+import { useLoadMore } from "../hooks/useLoadMore";
 import { formatQuota, formatSuitableMonths } from "../lib/format";
 
 export function HomePage() {
   const navigate = useNavigate();
   const { visibleProducts } = useEmployeeData();
   const [query, setQuery] = useState("");
-  const products = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return visibleProducts
-      .filter((product) => {
-        if (!normalizedQuery) {
-          return true;
-        }
-        return [
-          product.name,
-          product.summary,
-          product.travelDetails?.destination,
-        ].some((value) => value?.toLowerCase().includes(normalizedQuery));
-      })
-      .sort(
-        (left, right) =>
-          Number(Boolean(right.recommended)) -
-            Number(Boolean(left.recommended)) ||
-          (left.sortOrder ?? 0) - (right.sortOrder ?? 0),
-      );
-  }, [query, visibleProducts]);
+  const {
+    items: products,
+    pagination,
+    hasMore,
+    isLoading,
+    loadMore,
+  } = useLoadMore<ServiceProductDto>(
+    "/api/employee/products",
+    { query: query.trim() || undefined },
+    visibleProducts,
+  );
 
   return (
     <main className="home-page">
@@ -51,7 +45,7 @@ export function HomePage() {
             <h1>精选疗养服务</h1>
             <p>专属定制，自然松弛，重塑身心平衡</p>
           </div>
-          <span>{products.length} 项</span>
+          <span>{pagination.total} 项</span>
         </div>
 
         <div className="product-list">
@@ -110,6 +104,11 @@ export function HomePage() {
             </div>
           )}
         </div>
+        <LoadMoreButton
+          hasMore={hasMore}
+          isLoading={isLoading}
+          onClick={loadMore}
+        />
       </section>
 
       <EmployeeBottomNav active="home" />

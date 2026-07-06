@@ -2,6 +2,7 @@ export interface ApiConfig {
   databaseUrl: string;
   host: string;
   port: number;
+  uploadDir: string;
   sessionCookieSecure: boolean;
   sessionTtlDays: number;
 }
@@ -30,6 +31,7 @@ export function loadApiConfig(
     databaseUrl,
     host: environment.API_HOST?.trim() || "127.0.0.1",
     port: parsePositiveInteger(environment.API_PORT, 3000, "API_PORT"),
+    uploadDir: environment.UPLOAD_DIR?.trim() || "./data/uploads",
     sessionCookieSecure:
       environment.SESSION_COOKIE_SECURE?.toLowerCase() === "true",
     sessionTtlDays: parsePositiveInteger(

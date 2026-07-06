@@ -124,6 +124,7 @@ export const groups = pgTable(
   },
   (table) => [
     uniqueIndex("groups_name_unique").on(sql`lower(${table.name})`),
+    index("groups_status_created_index").on(table.status, table.createdAt),
   ],
 );
 
@@ -147,6 +148,11 @@ export const employees = pgTable(
   (table) => [
     uniqueIndex("employees_phone_unique").on(table.phone),
     index("employees_group_id_index").on(table.groupId),
+    index("employees_group_status_created_index").on(
+      table.groupId,
+      table.status,
+      table.createdAt,
+    ),
   ],
 );
 
@@ -198,6 +204,10 @@ export const serviceProducts = pgTable(
   (table) => [
     uniqueIndex("service_products_name_unique").on(
       sql`lower(${table.name})`,
+    ),
+    index("service_products_status_created_index").on(
+      table.status,
+      table.createdAt,
     ),
   ],
 );
@@ -252,6 +262,10 @@ export const personalIntents = pgTable(
   (table) => [
     index("personal_intents_employee_index").on(table.employeeId),
     index("personal_intents_product_index").on(table.productId),
+    index("personal_intents_status_created_index").on(
+      table.status,
+      table.createdAt,
+    ),
   ],
 );
 
@@ -305,6 +319,10 @@ export const personalOrders = pgTable(
     uniqueIndex("personal_orders_order_number_unique").on(table.orderNumber),
     index("personal_orders_employee_index").on(table.employeeId),
     index("personal_orders_group_index").on(table.groupId),
+    index("personal_orders_status_created_index").on(
+      table.status,
+      table.createdAt,
+    ),
     uniqueIndex("personal_orders_source_intent_unique")
       .on(table.sourceIntentId)
       .where(sql`${table.sourceIntentId} is not null`),
@@ -344,6 +362,7 @@ export const quotaTransactions = pgTable(
   (table) => [
     index("quota_transactions_employee_index").on(table.employeeId),
     index("quota_transactions_order_index").on(table.relatedOrderId),
+    index("quota_transactions_occurred_index").on(table.occurredAt),
   ],
 );
 
@@ -378,6 +397,10 @@ export const serviceReviews = pgTable(
     }),
   },
   (table) => [
+    index("service_reviews_status_submitted_index").on(
+      table.status,
+      table.submittedAt,
+    ),
     uniqueIndex("service_reviews_order_unique").on(table.orderId),
     check(
       "service_reviews_rating_range",

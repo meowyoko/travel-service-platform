@@ -1,11 +1,16 @@
 import { PackagePlus, Search } from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Modal } from "../components/Modal";
 import { MonthPicker } from "../components/MonthPicker";
+import { Pagination } from "../components/Pagination";
+import { ProductImageField } from "../components/ProductImageField";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAdminData } from "../context/AdminDataContext";
+import { usePaginatedList } from "../hooks/usePaginatedList";
+import { uploadProductImage } from "../lib/api";
+import type { ServiceProductDto } from "@travel/contracts";
 import { formatDate, formatQuota } from "../lib/format";
 
 const productTypeLabel = {
@@ -31,15 +36,17 @@ export function ProductsPage() {
   const [pageMessage, setPageMessage] = useState("");
   const [travelMonths, setTravelMonths] = useState<number[]>([]);
 
-  const products = useMemo(
-    () =>
-      data.serviceProducts.filter((product) => {
-        const matchesQuery = product.name.includes(query.trim());
-        const matchesStatus =
-          statusFilter === "all" || product.status === statusFilter;
-        return matchesQuery && matchesStatus;
-      }),
-    [data.serviceProducts, query, statusFilter],
+  const {
+    items: products,
+    pagination,
+    setPage,
+  } = usePaginatedList<ServiceProductDto>(
+    "/api/admin/products",
+    {
+      query: query.trim() || undefined,
+      status: statusFilter === "all" ? undefined : statusFilter,
+    },
+    data,
   );
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
@@ -49,17 +56,22 @@ export function ProductsPage() {
     const form = new FormData(event.currentTarget);
     const minQuota = Number(form.get("quotaMin"));
     const maxQuotaValue = String(form.get("quotaMax") ?? "").trim();
+    const coverImageFile = form.get("coverImageFile");
     const selectedGroupIds = form
       .getAll("groupIds")
       .map((value) => String(value));
 
     try {
+      if (!(coverImageFile instanceof File) || coverImageFile.size === 0) {
+        throw new Error("请选择商品首图");
+      }
+      const coverImage = await uploadProductImage(coverImageFile);
       await execute((service) =>
         service.createServiceProduct({
           name: String(form.get("name")),
           type: productType,
           summary: String(form.get("summary")),
-          coverImage: String(form.get("coverImage")),
+          coverImage,
           quotaReference: {
             min: minQuota,
             ...(maxQuotaValue ? { max: Number(maxQuotaValue) } : {}),
@@ -167,7 +179,7 @@ export function ProductsPage() {
       <section className="content-card">
         <div className="content-card__header">
           <h2>商品列表</h2>
-          <span className="record-count">共 {products.length} 个商品</span>
+          <span className="record-count">共 {pagination.total} 个商品</span>
         </div>
         <div className="table-scroll">
           <table>
@@ -245,6 +257,7 @@ export function ProductsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination meta={pagination} onChange={setPage} />
       </section>
 
       <Modal
@@ -298,14 +311,7 @@ export function ProductsPage() {
               ))}
             </select>
           </label>
-          <label className="field">
-            <span>商品主图</span>
-            <input
-              name="coverImage"
-              placeholder="/mock-images/product-cover.jpg"
-              required
-            />
-          </label>
+          <ProductImageField required />
           <label className="field">
             <span>额度参考下限</span>
             <input min="1" name="quotaMin" required type="number" />

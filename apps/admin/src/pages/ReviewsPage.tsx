@@ -1,10 +1,13 @@
 import type { ReviewStatus } from "@travel/domain";
+import type { ServiceReviewDto } from "@travel/contracts";
 import { Search, Star } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import { Pagination } from "../components/Pagination";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAdminData } from "../context/AdminDataContext";
+import { usePaginatedList } from "../hooks/usePaginatedList";
 import { formatDate } from "../lib/format";
 import { reviewStatusMeta } from "../lib/review-status";
 
@@ -16,32 +19,17 @@ export function ReviewsPage() {
   );
   const [pageMessage, setPageMessage] = useState("");
 
-  const reviews = useMemo(
-    () =>
-      data.serviceReviews.filter((review) => {
-        const order = data.personalOrders.find(
-          ({ id }) => id === review.orderId,
-        );
-        const employee = data.employees.find(
-          ({ id }) => id === review.employeeId,
-        );
-        const normalizedQuery = query.trim();
-        const matchesQuery =
-          !normalizedQuery ||
-          order?.orderNumber.includes(normalizedQuery) ||
-          employee?.name.includes(normalizedQuery) ||
-          order?.productSnapshot.name.includes(normalizedQuery);
-        const matchesStatus =
-          statusFilter === "all" || review.status === statusFilter;
-        return matchesQuery && matchesStatus;
-      }),
-    [
-      data.employees,
-      data.personalOrders,
-      data.serviceReviews,
-      query,
-      statusFilter,
-    ],
+  const {
+    items: reviews,
+    pagination,
+    setPage,
+  } = usePaginatedList<ServiceReviewDto>(
+    "/api/admin/reviews",
+    {
+      query: query.trim() || undefined,
+      status: statusFilter === "all" ? undefined : statusFilter,
+    },
+    data,
   );
 
   async function moderate(reviewId: string, status: "published" | "hidden") {
@@ -110,7 +98,7 @@ export function ReviewsPage() {
       <section className="content-card">
         <div className="content-card__header">
           <h2>评价列表</h2>
-          <span className="record-count">共 {reviews.length} 条评价</span>
+          <span className="record-count">共 {pagination.total} 条评价</span>
         </div>
         <div className="table-scroll">
           <table>
@@ -203,6 +191,7 @@ export function ReviewsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination meta={pagination} onChange={setPage} />
       </section>
     </>
   );

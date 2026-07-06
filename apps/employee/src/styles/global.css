@@ -36,6 +36,21 @@ button {
   cursor: pointer;
 }
 
+.load-more-button {
+  background: #fff;
+  border: 1px solid #c9d6d2;
+  border-radius: 999px;
+  color: #176f65;
+  display: block;
+  margin: 1.25rem auto 0;
+  min-height: 2.75rem;
+  padding: 0 1.5rem;
+}
+
+.load-more-button:disabled {
+  opacity: 0.55;
+}
+
 .login-page,
 .landing-page {
   margin: 0 auto;

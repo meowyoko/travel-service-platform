@@ -1,6 +1,10 @@
 import "dotenv/config";
 
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { after, before, test } from "node:test";
 
 import { mockData } from "@travel/mock-data";
@@ -39,9 +43,11 @@ assert(
 );
 
 const database = createDatabase(testDatabaseUrl);
+const uploadDir = join(tmpdir(), `travel-api-test-${randomUUID()}`);
 const config = {
   sessionCookieSecure: false,
   sessionTtlDays: 7,
+  uploadDir,
 };
 let app = buildApp({ db: database.db, config });
 
@@ -100,6 +106,7 @@ before(async () => {
 after(async () => {
   await app.close();
   await database.pool.end();
+  await rm(uploadDir, { recursive: true, force: true });
 });
 
 test("健康检查确认 PostgreSQL 已连接", async () => {
@@ -109,6 +116,53 @@ test("健康检查确认 PostgreSQL 已连接", async () => {
     status: "ok",
     database: "connected",
   });
+});
+
+test("列表接口使用数据库分页并返回总数", async () => {
+  const adminCookie = await loginAdmin();
+  const response = await app.inject({
+    method: "GET",
+    url: "/api/admin/groups?page=1&pageSize=1",
+    headers: { cookie: adminCookie },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().items.length, 1);
+  assert.equal(response.json().pagination.pageSize, 1);
+  assert.equal(response.json().pagination.total, mockData.groups.length);
+});
+
+test("商品首图上传校验图片并可通过静态地址读取", async () => {
+  const adminCookie = await loginAdmin();
+  const boundary = `----travel-${randomUUID()}`;
+  const image = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+    "base64",
+  );
+  const payload = Buffer.concat([
+    Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="cover.png"\r\nContent-Type: image/png\r\n\r\n`,
+    ),
+    image,
+    Buffer.from(`\r\n--${boundary}--\r\n`),
+  ]);
+  const uploadResponse = await app.inject({
+    method: "POST",
+    url: "/api/admin/uploads/product-images",
+    headers: {
+      cookie: adminCookie,
+      "content-type": `multipart/form-data; boundary=${boundary}`,
+    },
+    payload,
+  });
+  assert.equal(uploadResponse.statusCode, 200);
+  assert.match(uploadResponse.json().url, /^\/uploads\/product-images\/.+\.png$/);
+
+  const imageResponse = await app.inject({
+    method: "GET",
+    url: uploadResponse.json().url,
+  });
+  assert.equal(imageResponse.statusCode, 200);
+  assert.deepEqual(imageResponse.rawPayload, image);
 });
 
 test("Seed 完整迁移 Mock 数据且密码不再明文保存", async () => {

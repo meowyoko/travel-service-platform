@@ -64,3 +64,7 @@ export {
   type UpdatePendingOrderRequest,
   type UpdateServiceProductRequest,
 } from "./extended.js";
+export {
+  type PaginatedResponse,
+  type PaginationMeta,
+} from "./pagination.js";

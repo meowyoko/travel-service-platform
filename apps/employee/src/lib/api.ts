@@ -6,6 +6,7 @@ import type {
   ServiceProductDto,
   ServiceReviewDto,
   SubmitPersonalIntentRequest,
+  PaginatedResponse,
 } from "@travel/contracts";
 import type { QuotaAccount } from "@travel/domain";
 
@@ -85,6 +86,17 @@ export async function logoutEmployee(): Promise<void> {
 
 export async function fetchEmployeeContext(): Promise<EmployeeContextData> {
   return apiRequest<EmployeeContextData>("/api/employee/context");
+}
+
+export async function fetchPaginated<TResult>(
+  path: string,
+  params: Record<string, string | number | undefined>,
+): Promise<PaginatedResponse<TResult>> {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") search.set(key, String(value));
+  }
+  return apiRequest<PaginatedResponse<TResult>>(`${path}?${search}`);
 }
 
 export async function submitIntent(

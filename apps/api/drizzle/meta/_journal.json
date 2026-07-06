@@ -8,6 +8,13 @@
       "when": 1783251327639,
       "tag": "0000_powerful_talos",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783336124530,
+      "tag": "0001_typical_black_tarantula",
+      "breakpoints": true
     }
   ]
 }

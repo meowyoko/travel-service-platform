@@ -1,11 +1,14 @@
 import type { QuotaTransactionType } from "@travel/domain";
+import type { QuotaTransactionDto } from "@travel/contracts";
 import { ChevronRight, SlidersHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { EmployeeBottomNav } from "../components/EmployeeBottomNav";
 import { EmployeeSummaryHeader } from "../components/EmployeeSummaryHeader";
+import { LoadMoreButton } from "../components/LoadMoreButton";
 import { useEmployeeData } from "../context/EmployeeDataContext";
+import { useLoadMore } from "../hooks/useLoadMore";
 import { formatDateTime, formatQuota } from "../lib/format";
 
 const TRANSACTION_META: Record<
@@ -42,16 +45,17 @@ export function QuotaPage() {
   } = useEmployeeData();
   const [activeFilter, setActiveFilter] =
     useState<TransactionFilter>("all");
-  const transactions = useMemo(
-    () =>
-      [...personalQuotaTransactions]
-        .filter(
-          ({ type }) => activeFilter === "all" || type === activeFilter,
-        )
-        .sort((left, right) =>
-          right.occurredAt.localeCompare(left.occurredAt),
-        ),
-    [activeFilter, personalQuotaTransactions],
+  const {
+    items: transactions,
+    hasMore,
+    isLoading,
+    loadMore,
+  } = useLoadMore<
+    Omit<QuotaTransactionDto, "internalNote" | "operator">
+  >(
+    "/api/employee/quota",
+    { type: activeFilter === "all" ? undefined : activeFilter },
+    personalQuotaTransactions,
   );
   const totalConsumed = Math.max(
     0,
@@ -161,6 +165,11 @@ export function QuotaPage() {
             <span>额度发生变化后，会在这里留下完整记录。</span>
           </div>
         )}
+        <LoadMoreButton
+          hasMore={hasMore}
+          isLoading={isLoading}
+          onClick={loadMore}
+        />
       </section>
 
       <EmployeeBottomNav active="profile" />

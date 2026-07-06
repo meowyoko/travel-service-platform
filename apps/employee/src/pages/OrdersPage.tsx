@@ -1,12 +1,15 @@
-import type { OrderStatus, PersonalOrder } from "@travel/domain";
+import type { OrderStatus } from "@travel/domain";
+import type { PersonalOrderDto } from "@travel/contracts";
 import { CalendarDays, ChevronRight, MapPin } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { EmployeeBottomNav } from "../components/EmployeeBottomNav";
 import { EmployeeSummaryHeader } from "../components/EmployeeSummaryHeader";
 import { IntentOrderTabs } from "../components/IntentOrderTabs";
+import { LoadMoreButton } from "../components/LoadMoreButton";
 import { useEmployeeData } from "../context/EmployeeDataContext";
+import { useLoadMore } from "../hooks/useLoadMore";
 import { formatDate, formatQuota } from "../lib/format";
 
 const ORDER_STATUS_META: Record<
@@ -31,21 +34,7 @@ const ORDER_FILTERS = [
 
 type OrderFilter = (typeof ORDER_FILTERS)[number]["id"];
 
-function matchesFilter(order: PersonalOrder, filter: OrderFilter): boolean {
-  if (filter === "all") {
-    return true;
-  }
-  if (filter === "upcoming") {
-    return [
-      "pending_confirmation",
-      "confirmed",
-      "waiting_for_service",
-    ].includes(order.status);
-  }
-  return order.status === filter;
-}
-
-function getQuotaSummary(order: PersonalOrder): {
+function getQuotaSummary(order: PersonalOrderDto): {
   label: string;
   value: number;
 } {
@@ -62,14 +51,15 @@ export function OrdersPage() {
   const navigate = useNavigate();
   const { personalOrders, personalReviews } = useEmployeeData();
   const [activeFilter, setActiveFilter] = useState<OrderFilter>("all");
-  const orders = useMemo(
-    () =>
-      [...personalOrders]
-        .filter((order) => matchesFilter(order, activeFilter))
-        .sort((left, right) =>
-          right.createdAt.localeCompare(left.createdAt),
-        ),
-    [activeFilter, personalOrders],
+  const {
+    items: orders,
+    hasMore,
+    isLoading,
+    loadMore,
+  } = useLoadMore<PersonalOrderDto>(
+    "/api/employee/orders",
+    { status: activeFilter === "all" ? undefined : activeFilter },
+    personalOrders,
   );
 
   return (
@@ -173,6 +163,11 @@ export function OrdersPage() {
             <span>订单由工作人员与您沟通确认后生成。</span>
           </div>
         )}
+        <LoadMoreButton
+          hasMore={hasMore}
+          isLoading={isLoading}
+          onClick={loadMore}
+        />
       </section>
 
       <EmployeeBottomNav active="intents" />

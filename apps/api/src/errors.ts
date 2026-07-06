@@ -39,6 +39,13 @@ export function registerErrorHandler(app: FastifyInstance): void {
       });
     }
 
+    if (error.code === "FST_REQ_FILE_TOO_LARGE") {
+      return reply.code(413).send({
+        code: "IMAGE_TOO_LARGE",
+        message: "商品图片不能超过 5 MB",
+      });
+    }
+
     if (error.code === "23505") {
       return reply.code(409).send({
         code: "CONFLICT",

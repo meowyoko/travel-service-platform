@@ -3,6 +3,16 @@ import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import { requireAdmin, requireEmployee } from "../auth/guards.js";
 import type { Database } from "../db/client.js";
 import {
+  pageEmployees,
+  pageGroups,
+  pageIntents,
+  pageOrders,
+  pageProducts,
+  pageReviews,
+  pageTransactions,
+} from "./paged-read-model.js";
+import { parsePageQuery, type PageQuery } from "./pagination.js";
+import {
   listEmployees,
   listAdminOperatorAccounts,
   listGroups,
@@ -33,11 +43,19 @@ export function createAdminReadRoutes(
 
     app.get("/groups", async (request) => {
       await requireAdmin(db, request, "groups");
+      const query = request.query as PageQuery;
+      if (query.page !== undefined) {
+        return pageGroups(db, parsePageQuery(query));
+      }
       return { groups: await listGroups(db) };
     });
 
     app.get("/employees", async (request) => {
       await requireAdmin(db, request, "employees");
+      const query = request.query as PageQuery;
+      if (query.page !== undefined) {
+        return pageEmployees(db, parsePageQuery(query));
+      }
       return { employees: await listEmployees(db) };
     });
 
@@ -48,6 +66,10 @@ export function createAdminReadRoutes(
 
     app.get("/quota-transactions", async (request) => {
       await requireAdmin(db, request, "quotas");
+      const query = request.query as PageQuery;
+      if (query.page !== undefined) {
+        return pageTransactions(db, parsePageQuery(query));
+      }
       return {
         quotaTransactions: await listQuotaTransactions(db),
       };
@@ -55,21 +77,37 @@ export function createAdminReadRoutes(
 
     app.get("/products", async (request) => {
       await requireAdmin(db, request, "products");
+      const query = request.query as PageQuery;
+      if (query.page !== undefined) {
+        return pageProducts(db, parsePageQuery(query));
+      }
       return { serviceProducts: await listServiceProducts(db) };
     });
 
     app.get("/intents", async (request) => {
       await requireAdmin(db, request, "intents");
+      const query = request.query as PageQuery;
+      if (query.page !== undefined) {
+        return pageIntents(db, parsePageQuery(query));
+      }
       return { personalIntents: await listPersonalIntents(db) };
     });
 
     app.get("/orders", async (request) => {
       await requireAdmin(db, request, "orders");
+      const query = request.query as PageQuery;
+      if (query.page !== undefined) {
+        return pageOrders(db, parsePageQuery(query));
+      }
       return { personalOrders: await listPersonalOrders(db) };
     });
 
     app.get("/reviews", async (request) => {
       await requireAdmin(db, request, "reviews");
+      const query = request.query as PageQuery;
+      if (query.page !== undefined) {
+        return pageReviews(db, parsePageQuery(query));
+      }
       return { serviceReviews: await listServiceReviews(db) };
     });
   };
@@ -81,6 +119,14 @@ export function createEmployeeReadRoutes(
   return async (app) => {
     app.get("/products", async (request) => {
       const employee = await requireEmployee(db, request);
+      const query = request.query as PageQuery;
+      if (query.page !== undefined) {
+        return pageProducts(db, {
+          ...parsePageQuery(query),
+          visibleGroupId: employee.groupId,
+          publishedOnly: true,
+        });
+      }
       const products = await listServiceProducts(db);
       return {
         serviceProducts: products.filter(
@@ -94,6 +140,13 @@ export function createEmployeeReadRoutes(
 
     app.get("/intents", async (request) => {
       const employee = await requireEmployee(db, request);
+      const query = request.query as PageQuery;
+      if (query.page !== undefined) {
+        return pageIntents(db, {
+          ...parsePageQuery(query),
+          employeeId: employee.id,
+        });
+      }
       return {
         personalIntents: await listPersonalIntents(db, employee.id),
       };
@@ -101,6 +154,13 @@ export function createEmployeeReadRoutes(
 
     app.get("/orders", async (request) => {
       const employee = await requireEmployee(db, request);
+      const query = request.query as PageQuery;
+      if (query.page !== undefined) {
+        return pageOrders(db, {
+          ...parsePageQuery(query),
+          employeeId: employee.id,
+        });
+      }
       return {
         personalOrders: await listPersonalOrders(db, employee.id),
       };
@@ -108,6 +168,24 @@ export function createEmployeeReadRoutes(
 
     app.get("/quota", async (request) => {
       const employee = await requireEmployee(db, request);
+      const query = request.query as PageQuery;
+      if (query.page !== undefined) {
+        const [accounts, transactions] = await Promise.all([
+          listQuotaAccounts(db, employee.id),
+          pageTransactions(db, {
+            ...parsePageQuery(query),
+            employeeId: employee.id,
+          }),
+        ]);
+        return {
+          quotaAccount: accounts[0] ?? null,
+          items: transactions.items.map(
+            ({ internalNote: _note, operator: _operator, ...transaction }) =>
+              transaction,
+          ),
+          pagination: transactions.pagination,
+        };
+      }
       const [accounts, transactions] = await Promise.all([
         listQuotaAccounts(db, employee.id),
         listQuotaTransactions(db, employee.id),

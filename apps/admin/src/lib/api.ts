@@ -31,6 +31,7 @@ import type {
   QuotaTransactionDto,
   ServiceProductDto,
   ServiceReviewDto,
+  PaginatedResponse,
 } from "@travel/contracts";
 import type { Group, QuotaAccount } from "@travel/domain";
 
@@ -54,10 +55,13 @@ async function apiRequest<TResult>(
   path: string,
   init?: RequestInit,
 ): Promise<TResult> {
+  const isFormData = init?.body instanceof FormData;
   const response = await fetch(path, {
     credentials: "include",
     headers: {
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(init?.body && !isFormData
+        ? { "Content-Type": "application/json" }
+        : {}),
       ...init?.headers,
     },
     ...init,
@@ -79,6 +83,17 @@ async function apiRequest<TResult>(
 
 function jsonBody(value: unknown): string {
   return JSON.stringify(value);
+}
+
+export async function fetchPaginated<TResult>(
+  path: string,
+  params: Record<string, string | number | undefined>,
+): Promise<PaginatedResponse<TResult>> {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") search.set(key, String(value));
+  }
+  return apiRequest<PaginatedResponse<TResult>>(`${path}?${search}`);
 }
 
 export async function restoreAdminSession(): Promise<PublicOperatorAccount> {
@@ -111,6 +126,16 @@ export async function fetchAdminContext(): Promise<AdminPlatformData> {
     "/api/admin/context",
   );
   return response.data;
+}
+
+export async function uploadProductImage(file: File): Promise<string> {
+  const body = new FormData();
+  body.append("image", file);
+  const response = await apiRequest<{ url: string }>(
+    "/api/admin/uploads/product-images",
+    { method: "POST", body },
+  );
+  return response.url;
 }
 
 export class RemotePlatformService {

@@ -1,9 +1,12 @@
 import { Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import type { PersonalOrderDto } from "@travel/contracts";
 
+import { Pagination } from "../components/Pagination";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAdminData } from "../context/AdminDataContext";
+import { usePaginatedList } from "../hooks/usePaginatedList";
 import {
   formatDate,
   formatQuota,
@@ -22,21 +25,17 @@ export function OrdersPage() {
     void syncOrderStatuses();
   }, [syncOrderStatuses]);
 
-  const orders = useMemo(
-    () =>
-      data.personalOrders.filter((order) => {
-        const employee = data.employees.find(
-          ({ id }) => id === order.employeeId,
-        );
-        const matchesQuery =
-          order.orderNumber.includes(query.trim()) ||
-          employee?.name.includes(query.trim()) ||
-          order.productSnapshot.name.includes(query.trim());
-        const matchesStatus =
-          statusFilter === "all" || order.status === statusFilter;
-        return matchesQuery && matchesStatus;
-      }),
-    [data.employees, data.personalOrders, query, statusFilter],
+  const {
+    items: orders,
+    pagination,
+    setPage,
+  } = usePaginatedList<PersonalOrderDto>(
+    "/api/admin/orders",
+    {
+      query: query.trim() || undefined,
+      status: statusFilter === "all" ? undefined : statusFilter,
+    },
+    data,
   );
   async function confirmOrder(orderId: string) {
     setPageMessage("");
@@ -95,7 +94,7 @@ export function OrdersPage() {
       <section className="content-card">
         <div className="content-card__header">
           <h2>订单列表</h2>
-          <span className="record-count">共 {orders.length} 笔订单</span>
+          <span className="record-count">共 {pagination.total} 笔订单</span>
         </div>
         <div className="table-scroll">
           <table>
@@ -192,6 +191,7 @@ export function OrdersPage() {
             </tbody>
           </table>
         </div>
+        <Pagination meta={pagination} onChange={setPage} />
       </section>
 
     </>

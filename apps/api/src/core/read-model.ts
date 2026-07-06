@@ -9,7 +9,7 @@ import type {
   ServiceReviewDto,
   ServiceProductDto,
 } from "@travel/contracts";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import type { Database } from "../db/client.js";
 import {
@@ -88,8 +88,14 @@ export async function listAdminOperatorAccounts(
   }));
 }
 
-export async function listGroups(db: Database): Promise<GroupDto[]> {
-  const rows = await db.select().from(groups);
+export async function listGroups(
+  db: Database,
+  ids?: string[],
+): Promise<GroupDto[]> {
+  if (ids?.length === 0) return [];
+  const rows = ids?.length
+    ? await db.select().from(groups).where(inArray(groups.id, ids))
+    : await db.select().from(groups);
   return rows.map((group) => ({
     id: group.id,
     name: group.name,
@@ -108,10 +114,16 @@ export async function listGroups(db: Database): Promise<GroupDto[]> {
 export async function listEmployees(
   db: Database,
   employeeId?: string,
+  ids?: string[],
 ): Promise<AdminEmployeeDto[]> {
+  if (ids?.length === 0) return [];
   const query = db.select().from(employees);
-  const rows = employeeId
-    ? await query.where(eq(employees.id, employeeId))
+  const condition = and(
+    employeeId ? eq(employees.id, employeeId) : undefined,
+    ids?.length ? inArray(employees.id, ids) : undefined,
+  );
+  const rows = condition
+    ? await query.where(condition)
     : await query;
 
   return rows.map((employee) => ({
@@ -133,10 +145,16 @@ export async function listEmployees(
 export async function listQuotaAccounts(
   db: Database,
   employeeId?: string,
+  ids?: string[],
 ): Promise<QuotaAccountDto[]> {
+  if (ids?.length === 0) return [];
   const query = db.select().from(quotaAccounts);
-  const rows = employeeId
-    ? await query.where(eq(quotaAccounts.employeeId, employeeId))
+  const condition = and(
+    employeeId ? eq(quotaAccounts.employeeId, employeeId) : undefined,
+    ids?.length ? inArray(quotaAccounts.id, ids) : undefined,
+  );
+  const rows = condition
+    ? await query.where(condition)
     : await query;
 
   return rows.map((account) => ({
@@ -147,10 +165,22 @@ export async function listQuotaAccounts(
 
 export async function listServiceProducts(
   db: Database,
+  ids?: string[],
 ): Promise<ServiceProductDto[]> {
+  if (ids?.length === 0) return [];
   const [products, visibilityRows] = await Promise.all([
-    db.select().from(serviceProducts),
-    db.select().from(productVisibleGroups),
+    ids?.length
+      ? db
+          .select()
+          .from(serviceProducts)
+          .where(inArray(serviceProducts.id, ids))
+      : db.select().from(serviceProducts),
+    ids?.length
+      ? db
+          .select()
+          .from(productVisibleGroups)
+          .where(inArray(productVisibleGroups.productId, ids))
+      : db.select().from(productVisibleGroups),
   ]);
   const groupIdsByProduct = new Map<string, string[]>();
   for (const row of visibilityRows) {
@@ -194,10 +224,16 @@ export async function listServiceProducts(
 export async function listPersonalIntents(
   db: Database,
   employeeId?: string,
+  ids?: string[],
 ): Promise<PersonalIntentDto[]> {
+  if (ids?.length === 0) return [];
   const query = db.select().from(personalIntents);
-  const rows = employeeId
-    ? await query.where(eq(personalIntents.employeeId, employeeId))
+  const condition = and(
+    employeeId ? eq(personalIntents.employeeId, employeeId) : undefined,
+    ids?.length ? inArray(personalIntents.id, ids) : undefined,
+  );
+  const rows = condition
+    ? await query.where(condition)
     : await query;
 
   return rows.map((intent) => ({
@@ -237,10 +273,16 @@ export async function listPersonalIntents(
 export async function listPersonalOrders(
   db: Database,
   employeeId?: string,
+  ids?: string[],
 ): Promise<PersonalOrderDto[]> {
+  if (ids?.length === 0) return [];
   const query = db.select().from(personalOrders);
-  const rows = employeeId
-    ? await query.where(eq(personalOrders.employeeId, employeeId))
+  const condition = and(
+    employeeId ? eq(personalOrders.employeeId, employeeId) : undefined,
+    ids?.length ? inArray(personalOrders.id, ids) : undefined,
+  );
+  const rows = condition
+    ? await query.where(condition)
     : await query;
 
   return rows.map((order) => ({
@@ -277,10 +319,16 @@ export async function listPersonalOrders(
 export async function listQuotaTransactions(
   db: Database,
   employeeId?: string,
+  ids?: string[],
 ): Promise<QuotaTransactionDto[]> {
+  if (ids?.length === 0) return [];
   const query = db.select().from(quotaTransactions);
-  const rows = employeeId
-    ? await query.where(eq(quotaTransactions.employeeId, employeeId))
+  const condition = and(
+    employeeId ? eq(quotaTransactions.employeeId, employeeId) : undefined,
+    ids?.length ? inArray(quotaTransactions.id, ids) : undefined,
+  );
+  const rows = condition
+    ? await query.where(condition)
     : await query;
 
   return rows.map((transaction) => ({
@@ -304,10 +352,16 @@ export async function listQuotaTransactions(
 export async function listServiceReviews(
   db: Database,
   employeeId?: string,
+  ids?: string[],
 ): Promise<ServiceReviewDto[]> {
+  if (ids?.length === 0) return [];
   const query = db.select().from(serviceReviews);
-  const rows = employeeId
-    ? await query.where(eq(serviceReviews.employeeId, employeeId))
+  const condition = and(
+    employeeId ? eq(serviceReviews.employeeId, employeeId) : undefined,
+    ids?.length ? inArray(serviceReviews.id, ids) : undefined,
+  );
+  const rows = condition
+    ? await query.where(condition)
     : await query;
   return rows.map((review) => ({
     id: review.id,
