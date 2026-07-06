@@ -3,7 +3,7 @@
 }
 
 html {
-  min-width: 20rem;
+  min-width: 80rem;
   color: var(--color-text-primary);
   background: var(--color-bg-primary);
   font-family: var(--font-body);
@@ -309,7 +309,12 @@ a:focus-visible {
 .page-actions {
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: var(--space-2);
+}
+
+.page-actions .button {
+  white-space: nowrap;
 }
 
 .page-actions .button--danger-ghost {
@@ -1228,7 +1233,14 @@ fieldset:disabled {
 .table-actions {
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: var(--space-2);
+}
+
+.order-review-empty {
+  margin: 0;
+  padding: var(--space-5) var(--space-6);
+  font-size: var(--font-size-label);
 }
 
 .table-action--primary {
@@ -1312,119 +1324,5 @@ fieldset:disabled {
 
   to {
     opacity: 1;
-  }
-}
-
-@media (max-width: 48rem) {
-  .app-shell {
-    display: block;
-  }
-
-  .sidebar {
-    position: static;
-    display: block;
-    width: 100%;
-    height: auto;
-    padding: var(--space-4);
-    border-right: 0;
-    border-bottom: 0.0625rem solid var(--color-border);
-  }
-
-  .brand {
-    margin-bottom: var(--space-4);
-  }
-
-  .sidebar__profile {
-    display: none;
-  }
-
-  .sidebar__nav {
-    display: flex;
-    overflow-x: auto;
-  }
-
-  .nav-item {
-    min-width: 9rem;
-  }
-
-  .topbar {
-    position: static;
-  }
-
-  .metric-grid--three {
-    grid-template-columns: 1fr;
-  }
-
-  .product-detail-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .group-selector-card,
-  .quota-filter-card {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 40rem) {
-  .topbar {
-    padding: 0 var(--space-4);
-  }
-
-  .topbar__status {
-    display: none;
-  }
-
-  .page-container {
-    padding: var(--space-6) var(--space-4) var(--space-10);
-  }
-
-  .page-heading {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .page-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .page-heading h1 {
-    font-size: var(--font-size-heading);
-  }
-
-  .metric-grid,
-  .filter-card,
-  .form-grid,
-  .choice-grid,
-  .batch-import__toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .field--wide {
-    grid-column: auto;
-  }
-
-  .select-field {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .content-card__header,
-  .transaction-row {
-    padding: var(--space-4);
-  }
-
-  th,
-  td {
-    padding: var(--space-3) var(--space-4);
-  }
-
-  .transaction-row {
-    grid-template-columns: auto 1fr;
-  }
-
-  .transaction-row__amount {
-    grid-column: 2;
-    text-align: left;
   }
 }

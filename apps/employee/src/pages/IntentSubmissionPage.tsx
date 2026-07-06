@@ -12,6 +12,7 @@ import {
   TrainFront,
   Users,
 } from "lucide-react";
+import type { SubmitPersonalIntentRequest } from "@travel/contracts";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -37,6 +38,16 @@ function getSuggestedStayDays(value?: string): number {
   return firstNumber ? Number(firstNumber) : 1;
 }
 
+function addCalendarDays(value: string, days: number): string {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function formatShortDate(value: string): string {
+  return value.replaceAll("-", "/");
+}
+
 const CONTACT_TIMES = [
   "随时",
   "上午（09:00-12:00）",
@@ -52,6 +63,8 @@ export function IntentSubmissionPage() {
   const {
     currentEmployee,
     currentGroup,
+    personalIntents,
+    personalOrders,
     quotaAccount,
     submitPersonalIntent,
     visibleProducts,
@@ -60,14 +73,16 @@ export function IntentSubmissionPage() {
   const travel = product?.travelDetails;
   const today = useMemo(getTodayInShanghai, []);
   const transportOptions = travel?.transportOptions ?? [];
+  const initialStayDays = getSuggestedStayDays(
+    travel?.recommendedStayDays,
+  );
+  const initialTransport = transportOptions[0] ?? "";
   const [expectedTravelDate, setExpectedTravelDate] = useState("");
-  const [expectedStayDays, setExpectedStayDays] = useState(() =>
-    getSuggestedStayDays(travel?.recommendedStayDays),
-  );
+  const [expectedStayDays, setExpectedStayDays] =
+    useState(initialStayDays);
   const [companionCount, setCompanionCount] = useState(0);
-  const [preferredTransport, setPreferredTransport] = useState(
-    transportOptions[0] ?? "",
-  );
+  const [preferredTransport, setPreferredTransport] =
+    useState(initialTransport);
   const [accommodationPreference, setAccommodationPreference] =
     useState("无特别要求");
   const [needsPickup, setNeedsPickup] = useState(false);
@@ -75,6 +90,21 @@ export function IntentSubmissionPage() {
   const [convenientContactTime, setConvenientContactTime] = useState("随时");
   const [pageError, setPageError] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [submissionWarnings, setSubmissionWarnings] = useState<string[]>(
+    [],
+  );
+  const [pendingSubmission, setPendingSubmission] =
+    useState<SubmitPersonalIntentRequest | null>(null);
+  const isDirty =
+    Boolean(expectedTravelDate) ||
+    expectedStayDays !== initialStayDays ||
+    companionCount !== 0 ||
+    preferredTransport !== initialTransport ||
+    accommodationPreference !== "无特别要求" ||
+    needsPickup ||
+    Boolean(additionalNotes.trim()) ||
+    convenientContactTime !== "随时";
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -93,6 +123,25 @@ export function IntentSubmissionPage() {
 
   const selectedProductId = product.id;
 
+  async function performSubmission(
+    input: SubmitPersonalIntentRequest,
+  ): Promise<void> {
+    try {
+      await submitPersonalIntent(input);
+      setPendingSubmission(null);
+      setSubmissionWarnings([]);
+      setSubmitted(true);
+    } catch (caughtError) {
+      setPendingSubmission(null);
+      setSubmissionWarnings([]);
+      setPageError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "提交意向失败，请稍后重试",
+      );
+    }
+  }
+
   async function submitIntent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPageError("");
@@ -109,32 +158,74 @@ export function IntentSubmissionPage() {
       return;
     }
 
-    try {
-      await submitPersonalIntent({
-        productId: selectedProductId,
-        expectedTravelDate,
-        expectedStayDays,
-        companionCount,
-        ...(preferredTransport ? { preferredTransport } : {}),
-        needsPickup,
-        ...(accommodationPreference !== "无特别要求"
-          ? { accommodationPreference }
-          : {}),
-        ...(additionalNotes.trim()
-          ? { additionalNotes: additionalNotes.trim() }
-          : {}),
-        ...(convenientContactTime
-          ? { convenientContactTime }
-          : {}),
-      });
-      setSubmitted(true);
-    } catch (caughtError) {
-      setPageError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "提交意向失败，请稍后重试",
+    const input: SubmitPersonalIntentRequest = {
+      productId: selectedProductId,
+      expectedTravelDate,
+      expectedStayDays,
+      companionCount,
+      ...(preferredTransport ? { preferredTransport } : {}),
+      needsPickup,
+      ...(accommodationPreference !== "无特别要求"
+        ? { accommodationPreference }
+        : {}),
+      ...(additionalNotes.trim()
+        ? { additionalNotes: additionalNotes.trim() }
+        : {}),
+      ...(convenientContactTime ? { convenientContactTime } : {}),
+    };
+    const warnings: string[] = [];
+    const sameProductOrder = personalOrders.find(
+      ({ sourceProductId }) => sourceProductId === selectedProductId,
+    );
+    const sameProductIntent = personalIntents.find(
+      (intent) =>
+        intent.productId === selectedProductId &&
+        !["withdrawn_by_employee", "closed"].includes(intent.status),
+    );
+    if (sameProductOrder) {
+      warnings.push(
+        `你已经有该项目的订单（${sameProductOrder.orderNumber}）。`,
+      );
+    } else if (sameProductIntent) {
+      warnings.push("你已经提交过该项目的意向。");
+    }
+
+    const expectedEndDate = addCalendarDays(
+      expectedTravelDate,
+      expectedStayDays - 1,
+    );
+    const conflictingOrder = personalOrders.find(
+      (order) =>
+        order.status !== "cancelled" &&
+        Boolean(order.departureDate) &&
+        Boolean(order.returnDate) &&
+        expectedTravelDate <= order.returnDate! &&
+        expectedEndDate >= order.departureDate!,
+    );
+    if (
+      conflictingOrder?.departureDate &&
+      conflictingOrder.returnDate
+    ) {
+      warnings.push(
+        `预计行程 ${formatShortDate(expectedTravelDate)}—${formatShortDate(expectedEndDate)} 与订单 ${conflictingOrder.orderNumber} 的 ${formatShortDate(conflictingOrder.departureDate)}—${formatShortDate(conflictingOrder.returnDate)} 重叠。`,
       );
     }
+
+    if (warnings.length > 0) {
+      setPendingSubmission(input);
+      setSubmissionWarnings(warnings);
+      return;
+    }
+
+    await performSubmission(input);
+  }
+
+  function handleBack() {
+    if (isDirty) {
+      setShowLeaveConfirm(true);
+      return;
+    }
+    navigate(`/products/${selectedProductId}`);
   }
 
   if (submitted) {
@@ -168,7 +259,7 @@ export function IntentSubmissionPage() {
       <header className="intent-topbar">
         <button
           aria-label="返回商品详情"
-          onClick={() => navigate(`/products/${selectedProductId}`)}
+          onClick={handleBack}
           type="button"
         >
           <ArrowLeft size={19} />
@@ -394,6 +485,72 @@ export function IntentSubmissionPage() {
           </button>
         </div>
       </form>
+
+      {showLeaveConfirm ? (
+        <div className="intent-confirm-backdrop" role="presentation">
+          <section
+            aria-labelledby="leave-intent-title"
+            aria-modal="true"
+            className="intent-confirm"
+            role="dialog"
+          >
+            <h2 id="leave-intent-title">确认离开当前页面？</h2>
+            <p>已经填写的意向内容不会保存，离开后需要重新填写。</p>
+            <div>
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                type="button"
+              >
+                继续填写
+              </button>
+              <button
+                onClick={() =>
+                  navigate(`/products/${selectedProductId}`)
+                }
+                type="button"
+              >
+                确认离开
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {pendingSubmission ? (
+        <div className="intent-confirm-backdrop" role="presentation">
+          <section
+            aria-labelledby="submit-warning-title"
+            aria-modal="true"
+            className="intent-confirm"
+            role="dialog"
+          >
+            <h2 id="submit-warning-title">请确认本次意向</h2>
+            <ul className="intent-warning-list">
+              {submissionWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+            <p>系统不会阻止提交，请确认是否仍要继续。</p>
+            <div>
+              <button
+                onClick={() => {
+                  setPendingSubmission(null);
+                  setSubmissionWarnings([]);
+                }}
+                type="button"
+              >
+                返回修改
+              </button>
+              <button
+                onClick={() => void performSubmission(pendingSubmission)}
+                type="button"
+              >
+                仍然提交
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

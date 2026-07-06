@@ -1,4 +1,12 @@
-import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 import { useEmployeeData } from "./context/EmployeeDataContext";
 import { HomePage } from "./pages/HomePage";
@@ -13,7 +21,28 @@ import { QuotaPage } from "./pages/QuotaPage";
 
 function RequireEmployeeLogin() {
   const { currentEmployee, isLoading } = useEmployeeData();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const navigationEntry = performance.getEntriesByType(
+    "navigation",
+  )[0] as PerformanceNavigationTiming | undefined;
+  const shouldReturnHomeRef = useRef(
+    navigationEntry?.type === "reload" && location.pathname !== "/",
+  );
+  const shouldReturnHome =
+    !isLoading &&
+    Boolean(currentEmployee) &&
+    shouldReturnHomeRef.current;
+
+  useEffect(() => {
+    if (shouldReturnHome) {
+      shouldReturnHomeRef.current = false;
+      navigate("/", { replace: true });
+    }
+  }, [navigate, shouldReturnHome]);
+
   if (isLoading) return null;
+  if (shouldReturnHome) return null;
   return currentEmployee ? <Outlet /> : <Navigate replace to="/login" />;
 }
 

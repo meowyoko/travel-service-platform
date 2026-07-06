@@ -1,8 +1,7 @@
 import { Search } from "lucide-react";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { Modal } from "../components/Modal";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAdminData } from "../context/AdminDataContext";
 import {
@@ -17,8 +16,6 @@ export function OrdersPage() {
     useAdminData();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [error, setError] = useState("");
   const [pageMessage, setPageMessage] = useState("");
 
   useEffect(() => {
@@ -41,49 +38,6 @@ export function OrdersPage() {
       }),
     [data.employees, data.personalOrders, query, statusFilter],
   );
-  const editingOrder = data.personalOrders.find(
-    ({ id }) => id === editingId,
-  );
-
-  async function handleUpdate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-
-    if (!editingId) {
-      return;
-    }
-
-    const form = new FormData(event.currentTarget);
-    const departureDate = String(form.get("departureDate") ?? "").trim();
-    const returnDate = String(form.get("returnDate") ?? "").trim();
-    const transport = String(form.get("transport") ?? "").trim();
-    const accommodation = String(form.get("accommodation") ?? "").trim();
-    const internalNote = String(form.get("internalNote") ?? "").trim();
-
-    try {
-      await execute((service) =>
-        service.updatePendingPersonalOrder({
-          orderId: editingId,
-          plannedQuotaDeduction: Number(
-            form.get("plannedQuotaDeduction"),
-          ),
-          servicePlan: String(form.get("servicePlan")),
-          departureDate,
-          returnDate,
-          ...(transport ? { transport } : {}),
-          ...(accommodation ? { accommodation } : {}),
-          ...(internalNote ? { internalNote } : {}),
-        }),
-      );
-      setEditingId(null);
-      setPageMessage("待确认订单内容已保存。");
-    } catch (caughtError) {
-      setError(
-        caughtError instanceof Error ? caughtError.message : "保存订单失败",
-      );
-    }
-  }
-
   async function confirmOrder(orderId: string) {
     setPageMessage("");
 
@@ -94,16 +48,11 @@ export function OrdersPage() {
           operator: currentOperator?.username ?? "unknown",
         }),
       );
-      setEditingId(null);
       setPageMessage("订单已确认并扣减额度，履约状态已按出行日期自动更新。");
     } catch (caughtError) {
       const message =
         caughtError instanceof Error ? caughtError.message : "确认订单失败";
-      if (editingId) {
-        setError(message);
-      } else {
-        setPageMessage(message);
-      }
+      setPageMessage(message);
     }
   }
 
@@ -227,17 +176,6 @@ export function OrdersPage() {
                           查看
                         </Link>
                         {order.status === "pending_confirmation" ? (
-                          <>
-                          <button
-                            className="table-action"
-                            onClick={() => {
-                              setError("");
-                              setEditingId(order.id);
-                            }}
-                            type="button"
-                          >
-                            调整
-                          </button>
                           <button
                             className="table-action table-action--primary"
                             onClick={() => confirmOrder(order.id)}
@@ -245,7 +183,6 @@ export function OrdersPage() {
                           >
                             确认
                           </button>
-                          </>
                         ) : null}
                       </div>
                     </td>
@@ -257,108 +194,6 @@ export function OrdersPage() {
         </div>
       </section>
 
-      <Modal
-        description="此阶段不会扣减额度，确认订单后才执行扣减。"
-        footer={
-          <>
-            <button
-              className="button button--secondary"
-              onClick={() => setEditingId(null)}
-              type="button"
-            >
-              取消
-            </button>
-            <button
-              className="button button--secondary"
-              onClick={() => editingId && confirmOrder(editingId)}
-              type="button"
-            >
-              确认订单
-            </button>
-            <button
-              className="button button--primary"
-              form="update-order-form"
-              type="submit"
-            >
-              保存调整
-            </button>
-          </>
-        }
-        onClose={() => setEditingId(null)}
-        open={Boolean(editingOrder)}
-        title="调整待确认订单"
-      >
-        <form
-          className="form-grid"
-          id="update-order-form"
-          onSubmit={handleUpdate}
-        >
-          <div className="detail-summary field--wide">
-            <strong>{editingOrder?.productSnapshot.name}</strong>
-            <span>{editingOrder?.orderNumber}</span>
-          </div>
-          <label className="field">
-            <span>计划扣减额度</span>
-            <input
-              defaultValue={editingOrder?.plannedQuotaDeduction}
-              min="1"
-              name="plannedQuotaDeduction"
-              required
-              type="number"
-            />
-          </label>
-          <label className="field">
-            <span>出行日期</span>
-            <input
-              defaultValue={editingOrder?.departureDate}
-              name="departureDate"
-              required
-              type="date"
-            />
-          </label>
-          <label className="field">
-            <span>返程日期</span>
-            <input
-              defaultValue={editingOrder?.returnDate}
-              name="returnDate"
-              required
-              type="date"
-            />
-          </label>
-          <label className="field">
-            <span>往返方式</span>
-            <input
-              defaultValue={editingOrder?.transport}
-              name="transport"
-            />
-          </label>
-          <label className="field field--wide">
-            <span>住宿安排</span>
-            <input
-              defaultValue={editingOrder?.accommodation}
-              name="accommodation"
-            />
-          </label>
-          <label className="field field--wide">
-            <span>订单专属方案</span>
-            <textarea
-              defaultValue={editingOrder?.servicePlan}
-              name="servicePlan"
-              required
-              rows={5}
-            />
-          </label>
-          <label className="field field--wide">
-            <span>内部备注</span>
-            <textarea
-              defaultValue={editingOrder?.internalNote}
-              name="internalNote"
-              rows={3}
-            />
-          </label>
-          {error ? <p className="form-error field--wide">{error}</p> : null}
-        </form>
-      </Modal>
     </>
   );
 }

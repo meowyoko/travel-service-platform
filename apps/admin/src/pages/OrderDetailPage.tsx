@@ -54,8 +54,8 @@ export function OrderDetailPage() {
   const [pageMessage, setPageMessage] = useState("");
   const [assigning, setAssigning] = useState(false);
   const [assigneeDraft, setAssigneeDraft] = useState("");
-  const [editingTravelDates, setEditingTravelDates] = useState(false);
-  const [travelDateError, setTravelDateError] = useState("");
+  const [editingOrderContent, setEditingOrderContent] = useState(false);
+  const [orderEditError, setOrderEditError] = useState("");
 
   useEffect(() => {
     void syncOrderStatuses();
@@ -139,26 +139,34 @@ export function OrderDetailPage() {
     }
   }
 
-  async function updateTravelDates(event: FormEvent<HTMLFormElement>) {
+  async function updateOrderContent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setTravelDateError("");
+    setOrderEditError("");
     const form = new FormData(event.currentTarget);
 
     try {
       await execute((service) =>
-        service.updatePersonalOrderTravelDates({
+        service.updatePendingPersonalOrder({
           orderId: selectedOrder.id,
+          plannedQuotaDeduction: Number(
+            form.get("plannedQuotaDeduction"),
+          ),
           departureDate: String(form.get("departureDate") ?? ""),
           returnDate: String(form.get("returnDate") ?? ""),
+          transport: String(form.get("transport") ?? ""),
+          accommodation: String(form.get("accommodation") ?? ""),
+          pickupService: String(form.get("pickupService") ?? ""),
+          servicePlan: String(form.get("servicePlan") ?? ""),
+          internalNote: String(form.get("internalNote") ?? ""),
         }),
       );
-      setEditingTravelDates(false);
-      setPageMessage("出行日期已更新，订单状态已重新计算。");
+      setEditingOrderContent(false);
+      setPageMessage("待确认订单内容已保存。");
     } catch (caughtError) {
-      setTravelDateError(
+      setOrderEditError(
         caughtError instanceof Error
           ? caughtError.message
-          : "更新出行日期失败",
+          : "保存订单内容失败",
       );
     }
   }
@@ -179,20 +187,16 @@ export function OrderDetailPage() {
           <p>查看订单专属方案、额度变化及当前履约状态。</p>
         </div>
         <div className="page-actions">
-          {[
-            "pending_confirmation",
-            "confirmed",
-            "waiting_for_service",
-          ].includes(order.status) ? (
+          {order.status === "pending_confirmation" ? (
             <button
               className="button button--secondary"
-              onClick={async () => {
-                setTravelDateError("");
-                setEditingTravelDates(true);
+              onClick={() => {
+                setOrderEditError("");
+                setEditingOrderContent(true);
               }}
               type="button"
             >
-              调整出行日期
+              调整订单
             </button>
           ) : null}
           <button
@@ -384,7 +388,7 @@ export function OrderDetailPage() {
             </div>
           </div>
         ) : (
-          <p className="muted-text">
+          <p className="muted-text order-review-empty">
             {order.status === "completed"
               ? "该订单尚未提交评价"
               : "订单完成后员工方可提交评价"}
@@ -470,34 +474,48 @@ export function OrderDetailPage() {
       </section>
 
       <Modal
-        description="返程日期包含行程最后一天；保存后会立即按北京时间重新计算订单状态。"
+        description="待确认阶段可调整订单专属内容，此操作不会扣减额度。"
         footer={
           <>
             <button
               className="button button--secondary"
-              onClick={() => setEditingTravelDates(false)}
+              onClick={() => setEditingOrderContent(false)}
               type="button"
             >
               取消
             </button>
             <button
               className="button button--primary"
-              form="update-travel-dates-form"
+              form="update-order-content-form"
               type="submit"
             >
-              保存日期
+              保存调整
             </button>
           </>
         }
-        onClose={() => setEditingTravelDates(false)}
-        open={editingTravelDates}
-        title="调整出行日期"
+        onClose={() => setEditingOrderContent(false)}
+        open={editingOrderContent}
+        title="调整待确认订单"
       >
         <form
           className="form-grid"
-          id="update-travel-dates-form"
-          onSubmit={updateTravelDates}
+          id="update-order-content-form"
+          onSubmit={updateOrderContent}
         >
+          <div className="detail-summary field--wide">
+            <strong>{order.productSnapshot.name}</strong>
+            <span>{order.orderNumber}</span>
+          </div>
+          <label className="field">
+            <span>计划扣减额度</span>
+            <input
+              defaultValue={order.plannedQuotaDeduction}
+              min="1"
+              name="plannedQuotaDeduction"
+              required
+              type="number"
+            />
+          </label>
           <label className="field">
             <span>出行日期</span>
             <input
@@ -516,8 +534,49 @@ export function OrderDetailPage() {
               type="date"
             />
           </label>
-          {travelDateError ? (
-            <p className="form-error field--wide">{travelDateError}</p>
+          <label className="field">
+            <span>往返方式</span>
+            <input
+              defaultValue={order.transport}
+              name="transport"
+              placeholder="例如：高铁往返"
+            />
+          </label>
+          <label className="field">
+            <span>接送服务</span>
+            <input
+              defaultValue={order.pickupService}
+              name="pickupService"
+              placeholder="例如：提供接送站"
+            />
+          </label>
+          <label className="field field--wide">
+            <span>住宿安排</span>
+            <input
+              defaultValue={order.accommodation}
+              name="accommodation"
+              placeholder="填写酒店、房型或其他住宿安排"
+            />
+          </label>
+          <label className="field field--wide">
+            <span>订单专属方案</span>
+            <textarea
+              defaultValue={order.servicePlan}
+              name="servicePlan"
+              required
+              rows={5}
+            />
+          </label>
+          <label className="field field--wide">
+            <span>内部备注</span>
+            <textarea
+              defaultValue={order.internalNote}
+              name="internalNote"
+              rows={3}
+            />
+          </label>
+          {orderEditError ? (
+            <p className="form-error field--wide">{orderEditError}</p>
           ) : null}
         </form>
       </Modal>

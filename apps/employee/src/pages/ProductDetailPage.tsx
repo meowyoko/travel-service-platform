@@ -10,6 +10,7 @@ import {
   Star,
   Utensils,
 } from "lucide-react";
+import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { useEmployeeData } from "../context/EmployeeDataContext";
@@ -28,6 +29,10 @@ export function ProductDetailPage() {
   const navigate = useNavigate();
   const { publishedReviews, visibleProducts } = useEmployeeData();
   const product = visibleProducts.find(({ id }) => id === productId);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [productId]);
 
   if (!product) {
     return (
