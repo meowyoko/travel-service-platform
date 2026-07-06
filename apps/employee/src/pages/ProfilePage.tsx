@@ -6,6 +6,7 @@ import {
   LockKeyhole,
   LogOut,
   Phone,
+  Star,
   UserRound,
   WalletCards,
 } from "lucide-react";
@@ -28,6 +29,12 @@ const PROFILE_ENTRIES = [
     description: "查看已提交的服务意向",
     path: "/intents",
     icon: ClipboardList,
+  },
+  {
+    label: "我的评价",
+    description: "查看服务评分与审核状态",
+    path: "/reviews",
+    icon: Star,
   },
   {
     label: "我的订单",

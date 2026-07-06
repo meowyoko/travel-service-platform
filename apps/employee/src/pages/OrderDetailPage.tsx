@@ -8,6 +8,7 @@ import {
   Star,
   WalletCards,
 } from "lucide-react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { useEmployeeData } from "../context/EmployeeDataContext";
@@ -25,7 +26,12 @@ const ORDER_STATUS_LABELS = {
 export function OrderDetailPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const { personalOrders, personalReviews } = useEmployeeData();
+  const { personalOrders, personalReviews, submitReview } = useEmployeeData();
+  const [rating, setRating] = useState(0);
+  const [reviewContent, setReviewContent] = useState("");
+  const [confirmingReview, setConfirmingReview] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
   const order = personalOrders.find(({ id }) => id === orderId);
 
   if (!order) {
@@ -40,9 +46,44 @@ export function OrderDetailPage() {
   }
 
   const snapshot = order.productSnapshot;
-  const reviewed = personalReviews.some(
+  const review = personalReviews.find(
     ({ orderId: reviewOrderId }) => reviewOrderId === order.id,
   );
+  const reviewed = Boolean(review);
+
+  function prepareReview() {
+    const content = reviewContent.trim();
+    if (rating < 1) {
+      setReviewError("请选择 1 至 5 星评分");
+      return;
+    }
+    if (!content) {
+      setReviewError("请填写评价内容");
+      return;
+    }
+    setReviewError("");
+    setConfirmingReview(true);
+  }
+
+  async function confirmReview() {
+    if (!order) return;
+    setSubmittingReview(true);
+    try {
+      await submitReview(order.id, {
+        rating,
+        content: reviewContent.trim(),
+      });
+      setConfirmingReview(false);
+      setReviewError("");
+    } catch (caughtError) {
+      setConfirmingReview(false);
+      setReviewError(
+        caughtError instanceof Error ? caughtError.message : "提交评价失败",
+      );
+    } finally {
+      setSubmittingReview(false);
+    }
+  }
 
   return (
     <main className="order-detail-page">
@@ -150,17 +191,109 @@ export function OrderDetailPage() {
       </section>
 
       {order.status === "completed" ? (
-        <section className="order-review-state">
-          <Star size={18} />
-          <span>
-            <strong>{reviewed ? "该订单已评价" : "该订单可以评价"}</strong>
-            <small>
-              {reviewed
-                ? "评价内容可在后续“我的评价”中查看。"
-                : "评价表单将在下一阶段接入。"}
-            </small>
-          </span>
+        <section className="order-review-panel">
+          <div className="order-review-state">
+            <Star size={18} />
+            <span>
+              <strong>{reviewed ? "该订单已评价" : "评价本次服务"}</strong>
+              <small>
+                {review
+                  ? review.status === "pending_review"
+                    ? "评价已提交，等待后台审核。"
+                    : review.status === "published"
+                      ? "评价已审核并展示。"
+                      : "评价已审核，当前未公开展示。"
+                  : "请根据本次实际体验提交评分和文字评价。"}
+              </small>
+            </span>
+          </div>
+          {review ? (
+            <div className="submitted-review">
+              <div aria-label={`${review.rating} 星`}>
+                {Array.from({ length: 5 }, (_, index) => (
+                  <Star
+                    fill={index < review.rating ? "currentColor" : "none"}
+                    key={index}
+                    size={17}
+                  />
+                ))}
+              </div>
+              <p>{review.content}</p>
+              <small>提交于 {formatDate(review.submittedAt)}</small>
+            </div>
+          ) : (
+            <div className="review-form">
+              <div aria-label="评价星级" className="review-stars">
+                {Array.from({ length: 5 }, (_, index) => {
+                  const value = index + 1;
+                  return (
+                    <button
+                      aria-label={`${value} 星`}
+                      className={rating >= value ? "active" : ""}
+                      key={value}
+                      onClick={() => setRating(value)}
+                      type="button"
+                    >
+                      <Star
+                        fill={rating >= value ? "currentColor" : "none"}
+                        size={23}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              <label>
+                <span>评价内容</span>
+                <textarea
+                  maxLength={500}
+                  onChange={(event) => setReviewContent(event.target.value)}
+                  placeholder="说说本次服务体验"
+                  rows={4}
+                  value={reviewContent}
+                />
+                <small>{reviewContent.length} / 500</small>
+              </label>
+              {reviewError ? <p className="review-error">{reviewError}</p> : null}
+              <button
+                className="review-submit-button"
+                onClick={prepareReview}
+                type="button"
+              >
+                提交评价
+              </button>
+            </div>
+          )}
         </section>
+      ) : null}
+
+      {confirmingReview ? (
+        <div className="intent-confirm-backdrop" role="presentation">
+          <section
+            aria-labelledby="review-confirm-title"
+            aria-modal="true"
+            className="intent-confirm"
+            role="dialog"
+          >
+            <h2 id="review-confirm-title">确认提交评价？</h2>
+            <p>提交后不可再次修改，请确认评分和内容真实准确。</p>
+            <div>
+              <button
+                disabled={submittingReview}
+                onClick={() => setConfirmingReview(false)}
+                type="button"
+              >
+                返回检查
+              </button>
+              <button
+                disabled={submittingReview}
+                onClick={() => void confirmReview()}
+                type="button"
+              >
+                {submittingReview ? "提交中…" : "确认提交"}
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
     </main>
   );

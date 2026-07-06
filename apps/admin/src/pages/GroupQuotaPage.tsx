@@ -4,6 +4,7 @@ import {
   Building2,
   CheckSquare,
   CircleDollarSign,
+  Download,
   RotateCcw,
   Search,
   UsersRound,
@@ -17,6 +18,7 @@ import type {
 import { Link, useSearchParams } from "react-router-dom";
 
 import { Modal } from "../components/Modal";
+import { ExportModal } from "../components/ExportModal";
 import { Pagination } from "../components/Pagination";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAdminData } from "../context/AdminDataContext";
@@ -58,6 +60,7 @@ export function GroupQuotaPage() {
   const [lastRefundedOrderId, setLastRefundedOrderId] = useState<
     string | null
   >(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const groupEmployees = useMemo(
     () =>
@@ -266,6 +269,14 @@ export function GroupQuotaPage() {
           <h1>额度管理</h1>
           <p>额度按集团组织员工进行管理，额度变化均生成可追溯流水。</p>
         </div>
+        <button
+          className="button button--secondary"
+          onClick={() => setExportOpen(true)}
+          type="button"
+        >
+          <Download size={17} />
+          导出额度流水
+        </button>
       </section>
 
       <section className="group-selector-card">
@@ -791,6 +802,12 @@ export function GroupQuotaPage() {
           </form>
         ) : null}
       </Modal>
+      <ExportModal
+        groups={data.groups}
+        kind="quota-transactions"
+        onClose={() => setExportOpen(false)}
+        open={exportOpen}
+      />
     </>
   );
 }

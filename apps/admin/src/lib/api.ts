@@ -138,6 +138,40 @@ export async function uploadProductImage(file: File): Promise<string> {
   return response.url;
 }
 
+export async function downloadAdminExport(
+  kind: "intents" | "orders" | "quota-transactions",
+  params: Record<string, string>,
+): Promise<void> {
+  const search = new URLSearchParams(
+    Object.entries(params).filter(([, value]) => Boolean(value)),
+  );
+  const response = await fetch(`/api/admin/exports/${kind}?${search}`, {
+    credentials: "include",
+  });
+  if (!response.ok) {
+    let body: ApiErrorBody = {};
+    try {
+      body = (await response.json()) as ApiErrorBody;
+    } catch {
+      // 使用统一错误提示。
+    }
+    throw new Error(body.message || `导出失败（${response.status}）`);
+  }
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const filename = encodedName
+    ? decodeURIComponent(encodedName)
+    : `数据导出_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 export class RemotePlatformService {
   createOperatorAccount(input: CreateOperatorAccountInput) {
     const { actorAccountId: _actor, ...body } = input;

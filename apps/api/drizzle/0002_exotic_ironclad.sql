@@ -1,0 +1,2 @@
+CREATE INDEX "personal_intents_created_index" ON "personal_intents" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "personal_orders_confirmed_index" ON "personal_orders" USING btree ("confirmed_at");

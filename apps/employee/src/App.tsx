@@ -18,6 +18,7 @@ import { OrdersPage } from "./pages/OrdersPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { QuotaPage } from "./pages/QuotaPage";
+import { ReviewsPage } from "./pages/ReviewsPage";
 
 function RequireEmployeeLogin() {
   const { currentEmployee, isLoading } = useEmployeeData();
@@ -65,6 +66,7 @@ export function App() {
         <Route path="/orders/:orderId" element={<OrderDetailPage />} />
         <Route path="/quota" element={<QuotaPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/reviews" element={<ReviewsPage />} />
       </Route>
       <Route path="*" element={<Navigate replace to="/" />} />
     </Routes>

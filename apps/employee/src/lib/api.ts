@@ -6,6 +6,7 @@ import type {
   ServiceProductDto,
   ServiceReviewDto,
   SubmitPersonalIntentRequest,
+  SubmitOrderReviewRequest,
   PaginatedResponse,
 } from "@travel/contracts";
 import type { QuotaAccount } from "@travel/domain";
@@ -120,4 +121,15 @@ export async function withdrawIntent(
     { method: "POST" },
   );
   return response.intent;
+}
+
+export async function submitOrderReview(
+  orderId: string,
+  input: SubmitOrderReviewRequest,
+): Promise<ServiceReviewDto> {
+  const response = await apiRequest<{ review: ServiceReviewDto }>(
+    `/api/employee/orders/${orderId}/review`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+  return response.review;
 }

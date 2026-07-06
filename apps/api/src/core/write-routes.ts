@@ -5,6 +5,7 @@ import {
   CreateServiceProductRequestSchema,
   GrantQuotaRequestSchema,
   SubmitPersonalIntentRequestSchema,
+  SubmitOrderReviewRequestSchema,
   UpdateIntentFollowUpRequestSchema,
 } from "@travel/contracts";
 import {
@@ -23,6 +24,7 @@ import {
   grantQuota,
   publishServiceProduct,
   submitPersonalIntent,
+  submitOrderReview,
   updateIntentFollowUp,
   withdrawPersonalIntent,
 } from "./core-service.js";
@@ -33,6 +35,7 @@ import {
   listPersonalOrders,
   listQuotaTransactions,
   listServiceProducts,
+  listServiceReviews,
 } from "./read-model.js";
 
 const ProductParamsSchema = Type.Object({
@@ -230,6 +233,31 @@ export function createEmployeeWriteRoutes(
           "意向",
         );
         return { intent };
+      },
+    );
+
+    app.post(
+      "/orders/:orderId/review",
+      {
+        schema: {
+          params: OrderParamsSchema,
+          body: SubmitOrderReviewRequestSchema,
+        },
+      },
+      async (request, reply) => {
+        const actor = await requireEmployee(db, request);
+        const id = await submitOrderReview(
+          db,
+          actor,
+          request.params.orderId,
+          request.body,
+        );
+        const review = findCreated(
+          await listServiceReviews(db, actor.id, [id]),
+          id,
+          "评价",
+        );
+        return reply.code(201).send({ review });
       },
     );
   };

@@ -217,6 +217,13 @@ export function createEmployeeReadRoutes(
 
     app.get("/reviews", async (request) => {
       const employee = await requireEmployee(db, request);
+      const query = request.query as PageQuery;
+      if (query.page !== undefined) {
+        return pageReviews(db, {
+          ...parsePageQuery(query),
+          employeeId: employee.id,
+        });
+      }
       const [personalReviews, allReviews, products] = await Promise.all([
         listServiceReviews(db, employee.id),
         listServiceReviews(db),

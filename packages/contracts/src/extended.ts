@@ -130,6 +130,14 @@ export const ModerateReviewRequestSchema = Type.Object(
   { additionalProperties: false },
 );
 
+export const SubmitOrderReviewRequestSchema = Type.Object(
+  {
+    rating: Type.Integer({ minimum: 1, maximum: 5 }),
+    content: Type.String({ minLength: 1, maxLength: 500 }),
+  },
+  { additionalProperties: false },
+);
+
 const AdminPermissionSchema = Type.Union([
   Type.Literal("groups"),
   Type.Literal("employees"),
@@ -189,6 +197,9 @@ export type UpdateOrderTravelDatesRequest = Static<
 >;
 export type ModerateReviewRequest = Static<
   typeof ModerateReviewRequestSchema
+>;
+export type SubmitOrderReviewRequest = Static<
+  typeof SubmitOrderReviewRequestSchema
 >;
 export type CreateOperatorAccountRequest = Static<
   typeof CreateOperatorAccountRequestSchema

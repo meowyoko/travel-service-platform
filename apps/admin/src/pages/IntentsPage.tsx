@@ -1,8 +1,9 @@
-import { Search } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import type { PersonalIntentDto } from "@travel/contracts";
 
 import { Modal } from "../components/Modal";
+import { ExportModal } from "../components/ExportModal";
 import { Pagination } from "../components/Pagination";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAdminData } from "../context/AdminDataContext";
@@ -27,6 +28,7 @@ export function IntentsPage() {
   const [convertingAssignee, setConvertingAssignee] = useState("");
   const [error, setError] = useState("");
   const [pageMessage, setPageMessage] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
   const activeOperators = data.operatorAccounts.filter(
     ({ status }) => status === "active",
   );
@@ -143,6 +145,14 @@ export function IntentsPage() {
           <h1>个人意向</h1>
           <p>意向用于收集员工需求，不代表订单成立，也不会扣减员工额度。</p>
         </div>
+        <button
+          className="button button--secondary"
+          onClick={() => setExportOpen(true)}
+          type="button"
+        >
+          <Download size={17} />
+          导出意向
+        </button>
       </section>
 
       {pageMessage ? <div className="page-message">{pageMessage}</div> : null}
@@ -433,6 +443,12 @@ export function IntentsPage() {
           {error ? <p className="form-error field--wide">{error}</p> : null}
         </form>
       </Modal>
+      <ExportModal
+        groups={data.groups}
+        kind="intents"
+        onClose={() => setExportOpen(false)}
+        open={exportOpen}
+      />
     </>
   );
 }

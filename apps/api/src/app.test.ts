@@ -9,6 +9,7 @@ import { after, before, test } from "node:test";
 
 import { mockData } from "@travel/mock-data";
 import { count, eq } from "drizzle-orm";
+import * as XLSX from "xlsx";
 
 import { buildApp } from "./app.js";
 import { ADMIN_SESSION_COOKIE, EMPLOYEE_SESSION_COOKIE } from "./auth/session.js";
@@ -453,6 +454,98 @@ test("双端聚合上下文按登录身份和权限裁剪数据", async () => {
         visibleProductIds.has(review.productId),
     ),
   );
+});
+
+test("员工只能对本人已完成订单评价一次，并发提交只成功一次", async () => {
+  await database.db
+    .delete(serviceReviews)
+    .where(eq(serviceReviews.orderId, "order-li-moganshan-completed"));
+  const cookie = await loginEmployee("13900002002");
+  const responses = await Promise.all([
+    app.inject({
+      method: "POST",
+      url: "/api/employee/orders/order-li-moganshan-completed/review",
+      headers: { cookie },
+      payload: { rating: 5, content: "服务安排细致，住宿体验很好。" },
+    }),
+    app.inject({
+      method: "POST",
+      url: "/api/employee/orders/order-li-moganshan-completed/review",
+      headers: { cookie },
+      payload: { rating: 4, content: "并发提交测试。" },
+    }),
+  ]);
+  assert.deepEqual(
+    responses.map(({ statusCode }) => statusCode).sort(),
+    [201, 409],
+  );
+  const created = responses.find(({ statusCode }) => statusCode === 201);
+  assert.equal(created?.json().review.status, "pending_review");
+
+  const listResponse = await app.inject({
+    method: "GET",
+    url: "/api/employee/reviews?page=1&pageSize=10",
+    headers: { cookie },
+  });
+  assert.equal(listResponse.statusCode, 200);
+  assert.equal(listResponse.json().pagination.total, 1);
+
+  const otherCookie = await loginEmployee("13900002001");
+  const forbiddenResponse = await app.inject({
+    method: "POST",
+    url: "/api/employee/orders/order-li-moganshan-completed/review",
+    headers: { cookie: otherCookie },
+    payload: { rating: 5, content: "不能评价他人订单。" },
+  });
+  assert.equal(forbiddenResponse.statusCode, 403);
+
+  const incompleteResponse = await app.inject({
+    method: "POST",
+    url: "/api/employee/orders/order-zhang-sanya/review",
+    headers: { cookie: otherCookie },
+    payload: { rating: 5, content: "订单尚未完成。" },
+  });
+  assert.equal(incompleteResponse.statusCode, 409);
+});
+
+test("管理端按权限导出三类 Excel 完整数据", async () => {
+  const cookie = await loginAdmin();
+  for (const path of [
+    "intents",
+    "orders",
+    "quota-transactions",
+  ]) {
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/admin/exports/${path}`,
+      headers: { cookie },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.match(
+      String(response.headers["content-type"]),
+      /spreadsheetml\.sheet/,
+    );
+    const workbook = XLSX.read(response.rawPayload);
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0] ?? ""];
+    assert(firstSheet);
+    const rows = XLSX.utils.sheet_to_json(firstSheet);
+    assert(rows.length > 0);
+  }
+
+  const operatorCookie = await loginAdmin("operator");
+  const forbiddenResponse = await app.inject({
+    method: "GET",
+    url: "/api/admin/exports/quota-transactions",
+    headers: { cookie: operatorCookie },
+  });
+  assert.equal(forbiddenResponse.statusCode, 403);
+
+  const invalidRangeResponse = await app.inject({
+    method: "GET",
+    url: "/api/admin/exports/orders?dateFrom=2026-06-30&dateTo=2026-06-01",
+    headers: { cookie },
+  });
+  assert.equal(invalidRangeResponse.statusCode, 400);
 });
 
 test("PostgreSQL API 跑通完整闭环且并发确认只扣减一次", async () => {

@@ -1,8 +1,9 @@
-import { Search } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { PersonalOrderDto } from "@travel/contracts";
 
+import { ExportModal } from "../components/ExportModal";
 import { Pagination } from "../components/Pagination";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAdminData } from "../context/AdminDataContext";
@@ -20,6 +21,7 @@ export function OrdersPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [pageMessage, setPageMessage] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
     void syncOrderStatuses();
@@ -62,6 +64,14 @@ export function OrdersPage() {
           <h1>个人订单</h1>
           <p>待确认订单可继续调整；订单确认后才正式扣减员工额度。</p>
         </div>
+        <button
+          className="button button--secondary"
+          onClick={() => setExportOpen(true)}
+          type="button"
+        >
+          <Download size={17} />
+          导出对账
+        </button>
       </section>
 
       {pageMessage ? <div className="page-message">{pageMessage}</div> : null}
@@ -193,7 +203,12 @@ export function OrdersPage() {
         </div>
         <Pagination meta={pagination} onChange={setPage} />
       </section>
-
+      <ExportModal
+        groups={data.groups}
+        kind="orders"
+        onClose={() => setExportOpen(false)}
+        open={exportOpen}
+      />
     </>
   );
 }

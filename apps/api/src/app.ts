@@ -25,6 +25,7 @@ import {
 import { createAdminExtendedRoutes } from "./core/extended-routes.js";
 import { createContextRoutes } from "./core/context-routes.js";
 import { createUploadRoutes } from "./core/upload-routes.js";
+import { createExportRoutes } from "./core/export-routes.js";
 import { registerErrorHandler } from "./errors.js";
 
 interface BuildAppOptions {
@@ -118,6 +119,9 @@ export function buildApp({
   });
   app.register(createUploadRoutes(db, uploadRoot), {
     prefix: "/api/admin/uploads",
+  });
+  app.register(createExportRoutes(db), {
+    prefix: "/api/admin/exports",
   });
 
   return app;

@@ -266,6 +266,7 @@ export const personalIntents = pgTable(
       table.status,
       table.createdAt,
     ),
+    index("personal_intents_created_index").on(table.createdAt),
   ],
 );
 
@@ -323,6 +324,7 @@ export const personalOrders = pgTable(
       table.status,
       table.createdAt,
     ),
+    index("personal_orders_confirmed_index").on(table.confirmedAt),
     uniqueIndex("personal_orders_source_intent_unique")
       .on(table.sourceIntentId)
       .where(sql`${table.sourceIntentId} is not null`),

@@ -1961,6 +1961,171 @@ button {
   line-height: 1.6;
 }
 
+.order-review-panel {
+  background: white;
+  border: 1px solid #eadfca;
+  border-radius: 14px;
+  margin: 16px 18px 0;
+  overflow: hidden;
+}
+
+.order-review-panel .order-review-state {
+  border: 0;
+  border-radius: 0;
+  margin: 0;
+}
+
+.review-form,
+.submitted-review {
+  border-top: 1px solid #eee5d5;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.review-stars,
+.submitted-review > div,
+.my-review-stars {
+  color: #dc9b2b;
+  display: flex;
+  gap: 5px;
+}
+
+.review-stars button {
+  background: transparent;
+  color: #c8c8c8;
+  padding: 0;
+}
+
+.review-stars button.active {
+  color: #dc9b2b;
+}
+
+.review-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.review-form label > span {
+  font-size: 12px;
+}
+
+.review-form label small {
+  color: var(--text-muted);
+  font-size: 10px;
+  text-align: right;
+}
+
+.review-error {
+  color: #a64038;
+  font-size: 12px;
+  margin: 0;
+}
+
+.review-submit-button {
+  background: var(--primary);
+  border-radius: 9px;
+  color: white;
+  min-height: 42px;
+}
+
+.submitted-review p {
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.submitted-review > small {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.my-reviews-page {
+  background: var(--surface);
+  margin: 0 auto;
+  max-width: 480px;
+  min-height: 100vh;
+  padding-bottom: 88px;
+}
+
+.my-reviews-content {
+  padding: 22px 18px;
+}
+
+.my-reviews-heading h1 {
+  font-size: 22px;
+  margin: 0;
+}
+
+.my-reviews-heading p {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 6px 0 18px;
+}
+
+.my-review-list {
+  display: grid;
+  gap: 12px;
+}
+
+.my-review-list article {
+  background: white;
+  border: 1px solid #dfe4e5;
+  border-radius: 13px;
+  display: grid;
+  gap: 11px;
+  padding: 15px;
+}
+
+.my-review-title {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+}
+
+.my-review-title > span {
+  display: grid;
+  gap: 3px;
+}
+
+.my-review-title strong {
+  font-size: 14px;
+}
+
+.my-review-title small,
+.my-review-list time {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.my-review-title em {
+  border-radius: 999px;
+  font-size: 10px;
+  font-style: normal;
+  padding: 4px 8px;
+}
+
+.review-status.pending_review {
+  background: #fff2d9;
+  color: #8a5a12;
+}
+
+.review-status.published {
+  background: #dff2eb;
+  color: #176b52;
+}
+
+.review-status.hidden {
+  background: #edf0f1;
+  color: #667174;
+}
+
+.my-review-list p {
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+}
+
 .order-detail-unavailable {
   align-items: center;
   display: flex;

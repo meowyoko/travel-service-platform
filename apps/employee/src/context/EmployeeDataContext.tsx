@@ -6,6 +6,7 @@ import type {
   ServiceProductDto,
   ServiceReviewDto,
   SubmitPersonalIntentRequest,
+  SubmitOrderReviewRequest,
 } from "@travel/contracts";
 import type { QuotaAccount } from "@travel/domain";
 import {
@@ -24,6 +25,7 @@ import {
   logoutEmployee,
   restoreEmployeeSession,
   submitIntent,
+  submitOrderReview,
   withdrawIntent,
   type EmployeeContextData,
 } from "../lib/api";
@@ -50,6 +52,10 @@ interface EmployeeDataContextValue {
   withdrawPersonalIntent(input: {
     intentId: string;
   }): Promise<PersonalIntentDto>;
+  submitReview(
+    orderId: string,
+    input: SubmitOrderReviewRequest,
+  ): Promise<ServiceReviewDto>;
 }
 
 const emptyData: Omit<EmployeeContextData, "employee"> = {
@@ -145,6 +151,11 @@ export function EmployeeDataProvider({ children }: PropsWithChildren) {
         const intent = await withdrawIntent(intentId);
         await refreshData();
         return intent;
+      },
+      submitReview: async (orderId, input) => {
+        const review = await submitOrderReview(orderId, input);
+        await refreshData();
+        return review;
       },
     }),
     [currentEmployee, data, intentProducts, isLoading, refreshData],

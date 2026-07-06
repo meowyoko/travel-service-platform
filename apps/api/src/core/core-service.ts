@@ -6,6 +6,7 @@ import type {
   CreateGroupRequest,
   CreateServiceProductRequest,
   GrantQuotaRequest,
+  SubmitOrderReviewRequest,
   SubmitPersonalIntentRequest,
   UpdateIntentFollowUpRequest,
 } from "@travel/contracts";
@@ -24,6 +25,7 @@ import {
   productVisibleGroups,
   quotaAccounts,
   quotaTransactions,
+  serviceReviews,
   serviceProducts,
 } from "../db/schema.js";
 import { ApiError } from "../errors.js";
@@ -516,6 +518,55 @@ export async function withdrawPersonalIntent(
       .set({ status: "withdrawn_by_employee", updatedAt: new Date() })
       .where(eq(personalIntents.id, intent.id));
   });
+}
+
+export async function submitOrderReview(
+  db: Database,
+  actor: PublicEmployee,
+  orderId: string,
+  input: SubmitOrderReviewRequest,
+): Promise<string> {
+  const content = input.content.trim();
+  if (!content) {
+    throw new ApiError(400, "INVALID_REVIEW", "评价内容不能为空");
+  }
+  const reviewId = randomUUID();
+  await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select()
+      .from(personalOrders)
+      .where(eq(personalOrders.id, orderId))
+      .for("update");
+    if (!order) {
+      throw new ApiError(404, "ORDER_NOT_FOUND", "个人订单不存在");
+    }
+    if (order.employeeId !== actor.id) {
+      throw new ApiError(403, "FORBIDDEN", "只能评价本人的订单");
+    }
+    if (order.status !== "completed") {
+      throw new ApiError(409, "ORDER_NOT_COMPLETED", "只有已完成订单可以评价");
+    }
+    const [existingReview] = await tx
+      .select({ id: serviceReviews.id })
+      .from(serviceReviews)
+      .where(eq(serviceReviews.orderId, order.id));
+    if (existingReview) {
+      throw new ApiError(409, "REVIEW_EXISTS", "该订单已经提交过评价");
+    }
+    const now = new Date();
+    await tx.insert(serviceReviews).values({
+      id: reviewId,
+      orderId: order.id,
+      employeeId: actor.id,
+      productId: order.sourceProductId,
+      rating: input.rating,
+      content,
+      status: "pending_review",
+      submittedAt: now,
+      updatedAt: now,
+    });
+  });
+  return reviewId;
 }
 
 export async function updateIntentFollowUp(
