@@ -42,8 +42,8 @@ export function ProfilePage() {
   const { currentEmployee, currentGroup, logout } = useEmployeeData();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  function confirmLogout() {
-    logout();
+  async function confirmLogout() {
+    await logout();
     navigate("/login", { replace: true });
   }
 

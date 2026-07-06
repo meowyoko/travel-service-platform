@@ -69,7 +69,7 @@ export function OperatorAccountsPage() {
     );
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     if (!currentOperator || !editingId) {
@@ -80,7 +80,7 @@ export function OperatorAccountsPage() {
 
     try {
       if (editingId === "new") {
-        execute((service) =>
+        await execute((service) =>
           service.createOperatorAccount({
             actorAccountId: currentOperator.id,
             username: String(form.get("username")),
@@ -93,7 +93,7 @@ export function OperatorAccountsPage() {
         setPageMessage("运营账号已创建。");
       } else {
         const newPassword = String(form.get("password") ?? "");
-        execute((service) =>
+        await execute((service) =>
           service.updateOperatorAccount({
             actorAccountId: currentOperator.id,
             accountId: editingId,

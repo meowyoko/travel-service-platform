@@ -59,7 +59,7 @@ export function IntentsPage() {
     ({ id }) => id === convertingId,
   );
 
-  function handleFollowUp(event: FormEvent<HTMLFormElement>) {
+  async function handleFollowUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -71,7 +71,7 @@ export function IntentsPage() {
     const internalNote = String(form.get("internalNote") ?? "").trim();
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.updateIntentFollowUp({
           intentId: processingId,
           status: String(form.get("status")) as
@@ -90,13 +90,13 @@ export function IntentsPage() {
     }
   }
 
-  function closeIntent() {
+  async function closeIntent() {
     if (!processingId) {
       return;
     }
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.closePersonalIntent({
           intentId: processingId,
           assigneeAccountId: assigneeDraft,
@@ -111,7 +111,7 @@ export function IntentsPage() {
     }
   }
 
-  function handleConvert(event: FormEvent<HTMLFormElement>) {
+  async function handleConvert(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -124,7 +124,7 @@ export function IntentsPage() {
     const returnDate = String(form.get("returnDate") ?? "").trim();
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.convertIntentToPendingOrder({
           intentId: convertingId,
           assigneeAccountId: convertingAssignee,

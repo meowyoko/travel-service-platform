@@ -44,13 +44,13 @@ export function ReviewsPage() {
     ],
   );
 
-  function moderate(reviewId: string, status: "published" | "hidden") {
+  async function moderate(reviewId: string, status: "published" | "hidden") {
     if (!currentOperator) {
       return;
     }
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.moderateServiceReview({
           reviewId,
           actorAccountId: currentOperator.id,

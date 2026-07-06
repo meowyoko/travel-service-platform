@@ -23,12 +23,12 @@ importers:
       '@travel/application':
         specifier: workspace:*
         version: link:../../packages/application
+      '@travel/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@travel/domain':
         specifier: workspace:*
         version: link:../../packages/domain
-      '@travel/mock-data':
-        specifier: workspace:*
-        version: link:../../packages/mock-data
       lucide-react:
         specifier: ^0.468.0
         version: 0.468.0(react@19.2.7)
@@ -100,15 +100,12 @@ importers:
 
   apps/employee:
     dependencies:
-      '@travel/application':
+      '@travel/contracts':
         specifier: workspace:*
-        version: link:../../packages/application
+        version: link:../../packages/contracts
       '@travel/domain':
         specifier: workspace:*
         version: link:../../packages/domain
-      '@travel/mock-data':
-        specifier: workspace:*
-        version: link:../../packages/mock-data
       lucide-react:
         specifier: ^0.468.0
         version: 0.468.0(react@19.2.7)

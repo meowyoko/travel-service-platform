@@ -13,13 +13,13 @@ export function LoginPage() {
     return <Navigate replace to="/" />;
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     const form = new FormData(event.currentTarget);
 
     try {
-      login(String(form.get("phone")), String(form.get("password")));
+      await login(String(form.get("phone")), String(form.get("password")));
       navigate("/", { replace: true });
     } catch (caughtError) {
       setError(

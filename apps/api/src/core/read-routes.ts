@@ -4,12 +4,14 @@ import { requireAdmin, requireEmployee } from "../auth/guards.js";
 import type { Database } from "../db/client.js";
 import {
   listEmployees,
+  listAdminOperatorAccounts,
   listGroups,
   listOperatorAccounts,
   listPersonalIntents,
   listPersonalOrders,
   listQuotaAccounts,
   listQuotaTransactions,
+  listServiceReviews,
   listServiceProducts,
 } from "./read-model.js";
 
@@ -20,6 +22,13 @@ export function createAdminReadRoutes(
     app.get("/operators", async (request) => {
       await requireAdmin(db, request);
       return { operatorAccounts: await listOperatorAccounts(db) };
+    });
+
+    app.get("/operator-accounts", async (request) => {
+      await requireAdmin(db, request, "operator_accounts");
+      return {
+        operatorAccounts: await listAdminOperatorAccounts(db),
+      };
     });
 
     app.get("/groups", async (request) => {
@@ -57,6 +66,11 @@ export function createAdminReadRoutes(
     app.get("/orders", async (request) => {
       await requireAdmin(db, request, "orders");
       return { personalOrders: await listPersonalOrders(db) };
+    });
+
+    app.get("/reviews", async (request) => {
+      await requireAdmin(db, request, "reviews");
+      return { serviceReviews: await listServiceReviews(db) };
     });
   };
 }
@@ -103,6 +117,48 @@ export function createEmployeeReadRoutes(
         quotaTransactions: transactions.map(
           ({ internalNote: _internalNote, operator: _operator, ...item }) =>
             item,
+        ),
+      };
+    });
+
+    app.get("/group", async (request) => {
+      const employee = await requireEmployee(db, request);
+      const currentGroup = (await listGroups(db)).find(
+        ({ id }) => id === employee.groupId,
+      );
+      return {
+        group: currentGroup
+          ? {
+              id: currentGroup.id,
+              name: currentGroup.name,
+              status: currentGroup.status,
+            }
+          : null,
+      };
+    });
+
+    app.get("/reviews", async (request) => {
+      const employee = await requireEmployee(db, request);
+      const [personalReviews, allReviews, products] = await Promise.all([
+        listServiceReviews(db, employee.id),
+        listServiceReviews(db),
+        listServiceProducts(db),
+      ]);
+      const visibleProductIds = new Set(
+        products
+          .filter(
+            (product) =>
+              product.status === "published" &&
+              (product.visibility.scope === "all_groups" ||
+                product.visibility.groupIds.includes(employee.groupId)),
+          )
+          .map(({ id }) => id),
+      );
+      return {
+        personalReviews,
+        publishedReviews: allReviews.filter(
+          ({ productId, status }) =>
+            status === "published" && visibleProductIds.has(productId),
         ),
       };
     });

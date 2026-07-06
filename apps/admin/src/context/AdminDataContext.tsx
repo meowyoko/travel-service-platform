@@ -1,66 +1,97 @@
-import {
-  InMemoryPlatformRepository,
-  PlatformService,
-} from "@travel/application";
-import type {
-  AdminPagePermission,
-  OperatorAccount,
-  PlatformData,
-} from "@travel/domain";
-import { mockData } from "@travel/mock-data";
+import type { PublicOperatorAccount } from "@travel/contracts";
+import type { AdminPagePermission } from "@travel/domain";
 import {
   createContext,
   type PropsWithChildren,
-  useContext,
   useCallback,
+  useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
 
+import {
+  fetchAdminContext,
+  loginAdmin,
+  logoutAdmin,
+  RemotePlatformService,
+  restoreAdminSession,
+  type AdminPlatformData,
+} from "../lib/api";
+
 interface AdminDataContextValue {
-  data: PlatformData;
-  currentOperator: OperatorAccount | null;
-  execute<TResult>(operation: (service: PlatformService) => TResult): TResult;
+  data: AdminPlatformData;
+  currentOperator: PublicOperatorAccount | null;
+  isLoading: boolean;
+  execute<TResult>(
+    operation: (service: RemotePlatformService) => Promise<TResult>,
+  ): Promise<TResult>;
   hasPermission(permission: AdminPagePermission): boolean;
-  login(username: string, password: string): void;
-  logout(): void;
-  syncOrderStatuses(): number;
+  login(username: string, password: string): Promise<void>;
+  logout(): Promise<void>;
+  refreshData(): Promise<void>;
+  syncOrderStatuses(): Promise<number>;
 }
+
+const emptyData: AdminPlatformData = {
+  operatorAccounts: [],
+  groups: [],
+  employees: [],
+  quotaAccounts: [],
+  serviceProducts: [],
+  personalIntents: [],
+  personalOrders: [],
+  serviceReviews: [],
+  quotaTransactions: [],
+};
 
 const AdminDataContext = createContext<AdminDataContextValue | null>(null);
 
 export function AdminDataProvider({ children }: PropsWithChildren) {
-  const repository = useMemo(
-    () => new InMemoryPlatformRepository(mockData),
-    [],
-  );
-  const service = useMemo(() => new PlatformService(repository), [repository]);
-  const [data, setData] = useState(() => repository.getSnapshot());
-  const [currentOperatorId, setCurrentOperatorId] = useState<string | null>(
-    () => sessionStorage.getItem("travel-admin-operator-id"),
-  );
-  const currentOperator =
-    data.operatorAccounts.find(
-      ({ id, status }) =>
-        id === currentOperatorId && status === "active",
-    ) ?? null;
-  const syncOrderStatuses = useCallback(() => {
-    const updatedCount = service.syncPersonalOrderStatuses();
-    if (updatedCount > 0) {
-      setData(repository.getSnapshot());
-    }
-    return updatedCount;
-  }, [repository, service]);
+  const service = useMemo(() => new RemotePlatformService(), []);
+  const [data, setData] = useState<AdminPlatformData>(emptyData);
+  const [currentOperator, setCurrentOperator] =
+    useState<PublicOperatorAccount | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refreshData = useCallback(async () => {
+    setData(await fetchAdminContext());
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const account = await restoreAdminSession();
+        const nextData = await fetchAdminContext();
+        if (active) {
+          setCurrentOperator(account);
+          setData(nextData);
+        }
+      } catch {
+        if (active) {
+          setCurrentOperator(null);
+          setData(emptyData);
+        }
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const value = useMemo<AdminDataContextValue>(
     () => ({
       data,
       currentOperator,
-      execute: <TResult,>(
-        operation: (platformService: PlatformService) => TResult,
+      isLoading,
+      execute: async <TResult,>(
+        operation: (platformService: RemotePlatformService) => Promise<TResult>,
       ) => {
-        const result = operation(service);
-        setData(repository.getSnapshot());
+        const result = await operation(service);
+        await refreshData();
         return result;
       },
       hasPermission: (permission) =>
@@ -69,32 +100,29 @@ export function AdminDataProvider({ children }: PropsWithChildren) {
             (currentOperator.role === "leader" ||
               currentOperator.pagePermissions.includes(permission)),
         ),
-      login: (username, password) => {
-        const normalizedUsername = username.trim().toLowerCase();
-        const account = repository
-          .getSnapshot()
-          .operatorAccounts.find(
-            (candidate) =>
-              candidate.username.toLowerCase() === normalizedUsername,
-          );
-
-        if (!account || account.password !== password) {
-          throw new Error("用户名或密码错误");
-        }
-        if (account.status !== "active") {
-          throw new Error("该运营账号已停用");
-        }
-
-        sessionStorage.setItem("travel-admin-operator-id", account.id);
-        setCurrentOperatorId(account.id);
+      login: async (username, password) => {
+        const account = await loginAdmin(username, password);
+        setCurrentOperator(account);
+        await refreshData();
       },
-      logout: () => {
-        sessionStorage.removeItem("travel-admin-operator-id");
-        setCurrentOperatorId(null);
+      logout: async () => {
+        try {
+          await logoutAdmin();
+        } finally {
+          setCurrentOperator(null);
+          setData(emptyData);
+        }
       },
-      syncOrderStatuses,
+      refreshData,
+      syncOrderStatuses: async () => {
+        const updatedCount = await service.syncPersonalOrderStatuses();
+        if (updatedCount > 0) {
+          await refreshData();
+        }
+        return updatedCount;
+      },
     }),
-    [currentOperator, data, repository, service, syncOrderStatuses],
+    [currentOperator, data, isLoading, refreshData, service],
   );
 
   return (
@@ -106,10 +134,8 @@ export function AdminDataProvider({ children }: PropsWithChildren) {
 
 export function useAdminData(): AdminDataContextValue {
   const context = useContext(AdminDataContext);
-
   if (!context) {
     throw new Error("useAdminData 必须在 AdminDataProvider 中使用");
   }
-
   return context;
 }

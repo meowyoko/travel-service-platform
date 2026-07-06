@@ -12,13 +12,13 @@ export function LoginPage() {
     return <Navigate replace to="/" />;
   }
 
-  function handleLogin(event: FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     const form = new FormData(event.currentTarget);
 
     try {
-      login(String(form.get("username")), String(form.get("password")));
+      await login(String(form.get("username")), String(form.get("password")));
     } catch (caughtError) {
       setError(
         caughtError instanceof Error ? caughtError.message : "登录失败",

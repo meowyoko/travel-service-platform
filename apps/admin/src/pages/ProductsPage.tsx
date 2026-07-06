@@ -42,7 +42,7 @@ export function ProductsPage() {
     [data.serviceProducts, query, statusFilter],
   );
 
-  function handleCreate(event: FormEvent<HTMLFormElement>) {
+  async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -54,7 +54,7 @@ export function ProductsPage() {
       .map((value) => String(value));
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.createServiceProduct({
           name: String(form.get("name")),
           type: productType,
@@ -102,11 +102,11 @@ export function ProductsPage() {
     }
   }
 
-  function changeStatus(productId: string, status: "draft" | "published") {
+  async function changeStatus(productId: string, status: "draft" | "published") {
     setPageMessage("");
 
     try {
-      execute((service) =>
+      await execute((service) =>
         status === "draft"
           ? service.publishServiceProduct(productId)
           : service.unpublishServiceProduct(productId),

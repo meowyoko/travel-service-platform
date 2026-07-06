@@ -22,7 +22,7 @@ export function OrdersPage() {
   const [pageMessage, setPageMessage] = useState("");
 
   useEffect(() => {
-    syncOrderStatuses();
+    void syncOrderStatuses();
   }, [syncOrderStatuses]);
 
   const orders = useMemo(
@@ -45,7 +45,7 @@ export function OrdersPage() {
     ({ id }) => id === editingId,
   );
 
-  function handleUpdate(event: FormEvent<HTMLFormElement>) {
+  async function handleUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -61,7 +61,7 @@ export function OrdersPage() {
     const internalNote = String(form.get("internalNote") ?? "").trim();
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.updatePendingPersonalOrder({
           orderId: editingId,
           plannedQuotaDeduction: Number(
@@ -84,11 +84,11 @@ export function OrdersPage() {
     }
   }
 
-  function confirmOrder(orderId: string) {
+  async function confirmOrder(orderId: string) {
     setPageMessage("");
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.confirmPersonalOrder({
           orderId,
           operator: currentOperator?.username ?? "unknown",

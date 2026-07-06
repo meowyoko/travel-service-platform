@@ -156,9 +156,9 @@ export function ProductDetailPage() {
     };
   }
 
-  function saveUpdate(input: UpdateServiceProductInput) {
+  async function saveUpdate(input: UpdateServiceProductInput) {
     try {
-      execute((service) => service.updateServiceProduct(input));
+      await execute((service) => service.updateServiceProduct(input));
       setEditing(false);
       setPendingUpdate(null);
       setError("");
@@ -171,7 +171,7 @@ export function ProductDetailPage() {
     }
   }
 
-  function handleUpdate(event: FormEvent<HTMLFormElement>) {
+  async function handleUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     const input = buildUpdateInput(event);
@@ -185,12 +185,12 @@ export function ProductDetailPage() {
       setPendingUpdate(input);
       return;
     }
-    saveUpdate(input);
+    await saveUpdate(input);
   }
 
-  function changeStatus() {
+  async function changeStatus() {
     try {
-      execute((service) =>
+      await execute((service) =>
         selectedProduct.status === "published"
           ? service.unpublishServiceProduct(selectedProduct.id)
           : service.publishServiceProduct(selectedProduct.id),
@@ -207,9 +207,9 @@ export function ProductDetailPage() {
     }
   }
 
-  function deleteProduct() {
+  async function deleteProduct() {
     try {
-      execute((service) =>
+      await execute((service) =>
         service.deleteServiceProduct(selectedProduct.id),
       );
       navigate("/products");

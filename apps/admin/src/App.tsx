@@ -30,7 +30,8 @@ const defaultRoutes: Array<{
 ];
 
 function RequireLogin() {
-  const { currentOperator } = useAdminData();
+  const { currentOperator, isLoading } = useAdminData();
+  if (isLoading) return null;
   return currentOperator ? <Outlet /> : <Navigate replace to="/login" />;
 }
 

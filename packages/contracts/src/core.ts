@@ -7,6 +7,7 @@ import type {
   PersonalOrder,
   QuotaAccount,
   QuotaTransaction,
+  ServiceReview,
   ServiceProduct,
 } from "@travel/domain";
 
@@ -207,3 +208,4 @@ export type ServiceProductDto = ServiceProduct;
 export type PersonalIntentDto = PersonalIntent;
 export type PersonalOrderDto = PersonalOrder;
 export type QuotaTransactionDto = QuotaTransaction;
+export type ServiceReviewDto = ServiceReview;

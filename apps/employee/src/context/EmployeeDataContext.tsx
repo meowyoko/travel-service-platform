@@ -1,197 +1,153 @@
-import {
-  InMemoryPlatformRepository,
-  PlatformService,
-  type SubmitPersonalIntentInput,
-  type WithdrawPersonalIntentInput,
-} from "@travel/application";
 import type {
-  Employee,
-  Group,
-  PersonalIntent,
-  PersonalOrder,
-  QuotaAccount,
-  QuotaTransaction,
-  ServiceReview,
-  ServiceProduct,
-} from "@travel/domain";
-import { mockData } from "@travel/mock-data";
+  PersonalIntentDto,
+  PersonalOrderDto,
+  PublicEmployee,
+  QuotaTransactionDto,
+  ServiceProductDto,
+  ServiceReviewDto,
+  SubmitPersonalIntentRequest,
+} from "@travel/contracts";
+import type { QuotaAccount } from "@travel/domain";
 import {
   createContext,
   type PropsWithChildren,
+  useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
 
+import {
+  fetchEmployeeContext,
+  loginEmployee,
+  logoutEmployee,
+  restoreEmployeeSession,
+  submitIntent,
+  withdrawIntent,
+  type EmployeeContextData,
+} from "../lib/api";
+
 interface EmployeeDataContextValue {
-  currentEmployee: Employee | null;
-  currentGroup: Group | null;
+  currentEmployee: PublicEmployee | null;
+  currentGroup: EmployeeContextData["group"];
   quotaAccount: QuotaAccount | null;
-  visibleProducts: ServiceProduct[];
-  intentProducts: ServiceProduct[];
-  personalIntents: PersonalIntent[];
-  personalOrders: PersonalOrder[];
-  personalReviews: ServiceReview[];
-  personalQuotaTransactions: QuotaTransaction[];
-  publishedReviews: ServiceReview[];
-  login(phone: string, password: string): void;
-  logout(): void;
+  visibleProducts: ServiceProductDto[];
+  intentProducts: ServiceProductDto[];
+  personalIntents: PersonalIntentDto[];
+  personalOrders: PersonalOrderDto[];
+  personalReviews: ServiceReviewDto[];
+  personalQuotaTransactions: Array<
+    Omit<QuotaTransactionDto, "internalNote" | "operator">
+  >;
+  publishedReviews: ServiceReviewDto[];
+  isLoading: boolean;
+  login(phone: string, password: string): Promise<void>;
+  logout(): Promise<void>;
   submitPersonalIntent(
-    input: Omit<SubmitPersonalIntentInput, "employeeId">,
-  ): PersonalIntent;
-  withdrawPersonalIntent(
-    input: Omit<WithdrawPersonalIntentInput, "employeeId">,
-  ): PersonalIntent;
+    input: SubmitPersonalIntentRequest,
+  ): Promise<PersonalIntentDto>;
+  withdrawPersonalIntent(input: {
+    intentId: string;
+  }): Promise<PersonalIntentDto>;
 }
 
-const SESSION_KEY = "travel-employee-id";
+const emptyData: Omit<EmployeeContextData, "employee"> = {
+  group: null,
+  quotaAccount: null,
+  visibleProducts: [],
+  personalIntents: [],
+  personalOrders: [],
+  personalReviews: [],
+  publishedReviews: [],
+  personalQuotaTransactions: [],
+};
+
 const EmployeeDataContext = createContext<EmployeeDataContextValue | null>(
   null,
 );
 
 export function EmployeeDataProvider({ children }: PropsWithChildren) {
-  const repository = useMemo(
-    () => new InMemoryPlatformRepository(mockData),
-    [],
-  );
-  const service = useMemo(() => new PlatformService(repository), [repository]);
-  const [data, setData] = useState(() => repository.getSnapshot());
-  const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(
-    () => sessionStorage.getItem(SESSION_KEY),
-  );
-  const currentEmployee =
-    data.employees.find(
-      ({ id, status }) =>
-        id === currentEmployeeId && status === "active",
-    ) ?? null;
-  const currentGroup =
-    data.groups.find(({ id }) => id === currentEmployee?.groupId) ?? null;
-  const quotaAccount =
-    data.quotaAccounts.find(
-      ({ employeeId }) => employeeId === currentEmployee?.id,
-    ) ?? null;
-  const visibleProducts = useMemo(
-    () =>
-      currentEmployee
-        ? data.serviceProducts.filter(
-            (product) =>
-              product.status === "published" &&
-              (product.visibility.scope === "all_groups" ||
-                product.visibility.groupIds.includes(
-                  currentEmployee.groupId,
-                )),
-          )
-        : [],
-    [currentEmployee, data.serviceProducts],
-  );
-  const publishedReviews = useMemo(
-    () =>
-      data.serviceReviews.filter(({ status }) => status === "published"),
-    [data.serviceReviews],
-  );
-  const personalIntents = useMemo(
-    () =>
-      currentEmployee
-        ? data.personalIntents.filter(
-            ({ employeeId }) => employeeId === currentEmployee.id,
-          )
-        : [],
-    [currentEmployee, data.personalIntents],
-  );
+  const [currentEmployee, setCurrentEmployee] =
+    useState<PublicEmployee | null>(null);
+  const [data, setData] = useState(emptyData);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refreshData = useCallback(async () => {
+    const context = await fetchEmployeeContext();
+    setCurrentEmployee(context.employee);
+    setData(context);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const employee = await restoreEmployeeSession();
+        const context = await fetchEmployeeContext();
+        if (active) {
+          setCurrentEmployee(employee);
+          setData(context);
+        }
+      } catch {
+        if (active) {
+          setCurrentEmployee(null);
+          setData(emptyData);
+        }
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const intentProducts = useMemo(() => {
     const productIds = new Set(
-      personalIntents.map(({ productId }) => productId),
+      data.personalIntents.map(({ productId }) => productId),
     );
-    return data.serviceProducts.filter(({ id }) => productIds.has(id));
-  }, [data.serviceProducts, personalIntents]);
-  const personalOrders = useMemo(
-    () =>
-      currentEmployee
-        ? data.personalOrders.filter(
-            ({ employeeId }) => employeeId === currentEmployee.id,
-          )
-        : [],
-    [currentEmployee, data.personalOrders],
-  );
-  const personalReviews = useMemo(
-    () =>
-      currentEmployee
-        ? data.serviceReviews.filter(
-            ({ employeeId }) => employeeId === currentEmployee.id,
-          )
-        : [],
-    [currentEmployee, data.serviceReviews],
-  );
-  const personalQuotaTransactions = useMemo(
-    () =>
-      currentEmployee
-        ? data.quotaTransactions.filter(
-            ({ employeeId }) => employeeId === currentEmployee.id,
-          )
-        : [],
-    [currentEmployee, data.quotaTransactions],
-  );
+    return data.visibleProducts.filter(({ id }) => productIds.has(id));
+  }, [data.personalIntents, data.visibleProducts]);
 
   const value = useMemo<EmployeeDataContextValue>(
     () => ({
       currentEmployee,
-      currentGroup,
-      quotaAccount,
-      visibleProducts,
+      currentGroup: data.group,
+      quotaAccount: data.quotaAccount,
+      visibleProducts: data.visibleProducts,
       intentProducts,
-      personalIntents,
-      personalOrders,
-      personalReviews,
-      personalQuotaTransactions,
-      publishedReviews,
-      login: (phone, password) => {
-        const employee = service.authenticateEmployee({ phone, password });
-        sessionStorage.setItem(SESSION_KEY, employee.id);
-        setCurrentEmployeeId(employee.id);
+      personalIntents: data.personalIntents,
+      personalOrders: data.personalOrders,
+      personalReviews: data.personalReviews,
+      personalQuotaTransactions: data.personalQuotaTransactions,
+      publishedReviews: data.publishedReviews,
+      isLoading,
+      login: async (phone, password) => {
+        const employee = await loginEmployee(phone, password);
+        setCurrentEmployee(employee);
+        await refreshData();
       },
-      logout: () => {
-        sessionStorage.removeItem(SESSION_KEY);
-        setCurrentEmployeeId(null);
-      },
-      submitPersonalIntent: (input) => {
-        if (!currentEmployee) {
-          throw new Error("请先登录后再提交意向");
+      logout: async () => {
+        try {
+          await logoutEmployee();
+        } finally {
+          setCurrentEmployee(null);
+          setData(emptyData);
         }
-
-        const intent = service.submitPersonalIntent({
-          ...input,
-          employeeId: currentEmployee.id,
-        });
-        setData(repository.getSnapshot());
+      },
+      submitPersonalIntent: async (input) => {
+        const intent = await submitIntent(input);
+        await refreshData();
         return intent;
       },
-      withdrawPersonalIntent: (input) => {
-        if (!currentEmployee) {
-          throw new Error("请先登录后再撤销意向");
-        }
-
-        const intent = service.withdrawPersonalIntent({
-          ...input,
-          employeeId: currentEmployee.id,
-        });
-        setData(repository.getSnapshot());
+      withdrawPersonalIntent: async ({ intentId }) => {
+        const intent = await withdrawIntent(intentId);
+        await refreshData();
         return intent;
       },
     }),
-    [
-      currentEmployee,
-      currentGroup,
-      intentProducts,
-      personalIntents,
-      personalOrders,
-      personalReviews,
-      personalQuotaTransactions,
-      publishedReviews,
-      quotaAccount,
-      repository,
-      service,
-      visibleProducts,
-    ],
+    [currentEmployee, data, intentProducts, isLoading, refreshData],
   );
 
   return (

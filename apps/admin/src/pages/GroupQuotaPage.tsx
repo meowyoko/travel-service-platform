@@ -139,14 +139,14 @@ export function GroupQuotaPage() {
     });
   }
 
-  function handleBatchGrant(event: FormEvent<HTMLFormElement>) {
+  async function handleBatchGrant(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
     const form = new FormData(event.currentTarget);
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.grantQuotaBatch({
           employeeIds: [...selectedEmployeeIds],
           amount: Number(form.get("amount")),
@@ -167,7 +167,7 @@ export function GroupQuotaPage() {
     }
   }
 
-  function handleAdjustment(event: FormEvent<HTMLFormElement>) {
+  async function handleAdjustment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -177,7 +177,7 @@ export function GroupQuotaPage() {
     const form = new FormData(event.currentTarget);
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.adjustQuota({
           employeeId: adjustingEmployeeId,
           amount: Number(form.get("amount")),
@@ -195,7 +195,7 @@ export function GroupQuotaPage() {
     }
   }
 
-  function handleOrderRefund(event: FormEvent<HTMLFormElement>) {
+  async function handleOrderRefund(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -209,7 +209,7 @@ export function GroupQuotaPage() {
         refundMode === "full"
           ? remainingRefundableQuota
           : Number(form.get("amount"));
-      execute((service) =>
+      await execute((service) =>
         service.refundPersonalOrderQuota({
           orderId: refundOrder.id,
           amount,

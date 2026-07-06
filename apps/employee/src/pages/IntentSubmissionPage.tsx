@@ -93,7 +93,7 @@ export function IntentSubmissionPage() {
 
   const selectedProductId = product.id;
 
-  function submitIntent(event: FormEvent<HTMLFormElement>) {
+  async function submitIntent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPageError("");
 
@@ -110,7 +110,7 @@ export function IntentSubmissionPage() {
     }
 
     try {
-      submitPersonalIntent({
+      await submitPersonalIntent({
         productId: selectedProductId,
         expectedTravelDate,
         expectedStayDays,

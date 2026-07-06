@@ -322,6 +322,85 @@ test("普通运营账号只能读取已授权的管理端资源", async () => {
   assert.equal(groupsResponse.json().code, "FORBIDDEN");
 });
 
+test("双端聚合上下文按登录身份和权限裁剪数据", async () => {
+  const leaderCookie = await loginAdmin();
+  const username = `context-viewer-${Date.now()}`;
+  const createAccountResponse = await app.inject({
+    method: "POST",
+    url: "/api/admin/operator-accounts",
+    headers: { cookie: leaderCookie },
+    payload: {
+      username,
+      password: "123456",
+      displayName: "上下文权限测试",
+      role: "staff",
+      pagePermissions: [],
+    },
+  });
+  assert.equal(createAccountResponse.statusCode, 201);
+
+  const operatorCookie = await loginAdmin(username);
+  const adminContextResponse = await app.inject({
+    method: "GET",
+    url: "/api/admin/context",
+    headers: { cookie: operatorCookie },
+  });
+  assert.equal(adminContextResponse.statusCode, 200);
+  const adminData = adminContextResponse.json().data;
+  assert.deepEqual(adminData.groups, []);
+  assert.deepEqual(adminData.employees, []);
+  assert.deepEqual(adminData.serviceProducts, []);
+  assert.deepEqual(adminData.personalIntents, []);
+  assert.deepEqual(adminData.personalOrders, []);
+  assert.deepEqual(adminData.quotaAccounts, []);
+  assert.deepEqual(adminData.quotaTransactions, []);
+  assert.deepEqual(adminData.serviceReviews, []);
+  assert(
+    adminData.operatorAccounts.every(
+      (account: Record<string, unknown>) =>
+        !("password" in account) && !("passwordHash" in account),
+    ),
+  );
+
+  const employeeCookie = await loginEmployee("13900002001");
+  const employeeContextResponse = await app.inject({
+    method: "GET",
+    url: "/api/employee/context",
+    headers: { cookie: employeeCookie },
+  });
+  assert.equal(employeeContextResponse.statusCode, 200);
+  const employeeData = employeeContextResponse.json();
+  assert.equal(employeeData.employee.id, "employee-zhang");
+  assert(
+    employeeData.personalIntents.every(
+      (intent: { employeeId: string }) =>
+        intent.employeeId === "employee-zhang",
+    ),
+  );
+  assert(
+    employeeData.personalOrders.every(
+      (order: { employeeId: string }) =>
+        order.employeeId === "employee-zhang",
+    ),
+  );
+  assert(
+    employeeData.personalQuotaTransactions.every(
+      (transaction: Record<string, unknown>) =>
+        !("internalNote" in transaction) && !("operator" in transaction),
+    ),
+  );
+  const visibleProductIds = new Set(
+    employeeData.visibleProducts.map(({ id }: { id: string }) => id),
+  );
+  assert(
+    employeeData.publishedReviews.every(
+      (review: { productId: string; status: string }) =>
+        review.status === "published" &&
+        visibleProductIds.has(review.productId),
+    ),
+  );
+});
+
 test("PostgreSQL API 跑通完整闭环且并发确认只扣减一次", async () => {
   const adminCookie = await loginAdmin();
   const suffix = String(Date.now());

@@ -18,6 +18,8 @@ import {
   createAdminWriteRoutes,
   createEmployeeWriteRoutes,
 } from "./core/write-routes.js";
+import { createAdminExtendedRoutes } from "./core/extended-routes.js";
+import { createContextRoutes } from "./core/context-routes.js";
 import { registerErrorHandler } from "./errors.js";
 
 interface BuildAppOptions {
@@ -92,6 +94,12 @@ export function buildApp({
   });
   app.register(createEmployeeWriteRoutes(db), {
     prefix: "/api/employee",
+  });
+  app.register(createAdminExtendedRoutes(db), {
+    prefix: "/api/admin",
+  });
+  app.register(createContextRoutes(db), {
+    prefix: "/api",
   });
 
   return app;

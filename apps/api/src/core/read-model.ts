@@ -6,6 +6,7 @@ import type {
   PublicOperatorAccount,
   QuotaAccountDto,
   QuotaTransactionDto,
+  ServiceReviewDto,
   ServiceProductDto,
 } from "@travel/contracts";
 import { eq } from "drizzle-orm";
@@ -21,6 +22,7 @@ import {
   productVisibleGroups,
   quotaAccounts,
   quotaTransactions,
+  serviceReviews,
   serviceProducts,
 } from "../db/schema.js";
 
@@ -49,6 +51,41 @@ export async function listOperatorAccounts(
         permissionsByAccount.get(account.id) ?? []
       ).map(({ permission }) => permission),
     }));
+}
+
+export async function listAdminOperatorAccounts(
+  db: Database,
+): Promise<
+  Array<
+    PublicOperatorAccount & {
+      status: "active" | "disabled";
+      createdAt: string;
+      updatedAt: string;
+    }
+  >
+> {
+  const [accounts, permissions] = await Promise.all([
+    db.select().from(operatorAccounts),
+    db.select().from(operatorPagePermissions),
+  ]);
+  const permissionsByAccount = new Map<string, typeof permissions>();
+  for (const permission of permissions) {
+    const rows = permissionsByAccount.get(permission.operatorAccountId) ?? [];
+    rows.push(permission);
+    permissionsByAccount.set(permission.operatorAccountId, rows);
+  }
+  return accounts.map((account) => ({
+    id: account.id,
+    username: account.username,
+    displayName: account.displayName,
+    role: account.role,
+    status: account.status,
+    pagePermissions: (
+      permissionsByAccount.get(account.id) ?? []
+    ).map(({ permission }) => permission),
+    createdAt: account.createdAt.toISOString(),
+    updatedAt: account.updatedAt.toISOString(),
+  }));
 }
 
 export async function listGroups(db: Database): Promise<GroupDto[]> {
@@ -260,6 +297,33 @@ export async function listQuotaTransactions(
       : {}),
     ...(transaction.internalNote
       ? { internalNote: transaction.internalNote }
+      : {}),
+  }));
+}
+
+export async function listServiceReviews(
+  db: Database,
+  employeeId?: string,
+): Promise<ServiceReviewDto[]> {
+  const query = db.select().from(serviceReviews);
+  const rows = employeeId
+    ? await query.where(eq(serviceReviews.employeeId, employeeId))
+    : await query;
+  return rows.map((review) => ({
+    id: review.id,
+    orderId: review.orderId,
+    employeeId: review.employeeId,
+    productId: review.productId,
+    rating: review.rating,
+    content: review.content,
+    status: review.status,
+    submittedAt: review.submittedAt.toISOString(),
+    updatedAt: review.updatedAt.toISOString(),
+    ...(review.moderatedByAccountId
+      ? { moderatedByAccountId: review.moderatedByAccountId }
+      : {}),
+    ...(review.moderatedAt
+      ? { moderatedAt: review.moderatedAt.toISOString() }
       : {}),
   }));
 }

@@ -21,7 +21,7 @@ export function GroupsPage() {
   const [error, setError] = useState("");
   const activeGroups = data.groups.filter(({ status }) => status === "active");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -29,7 +29,7 @@ export function GroupsPage() {
     const note = String(form.get("note") ?? "").trim();
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.createGroup({
           name: String(form.get("name")),
           contactName: String(form.get("contactName")),
@@ -55,7 +55,7 @@ export function GroupsPage() {
     ({ groupId }) => groupId === deletingId,
   ).length;
 
-  function handleEdit(event: FormEvent<HTMLFormElement>) {
+  async function handleEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -70,7 +70,7 @@ export function GroupsPage() {
     const note = String(form.get("note") ?? "").trim();
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.updateGroup({
           groupId: editingId,
           name: String(form.get("name")),
@@ -93,7 +93,7 @@ export function GroupsPage() {
     }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!deletingGroup) {
       return;
     }
@@ -107,7 +107,7 @@ export function GroupsPage() {
     }
 
     try {
-      execute((service) => service.deleteGroup(deletingGroup.id));
+      await execute((service) => service.deleteGroup(deletingGroup.id));
       setDeletingId(null);
       setDeleteConfirmText("");
       setError("");

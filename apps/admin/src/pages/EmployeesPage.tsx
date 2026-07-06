@@ -56,7 +56,7 @@ export function EmployeesPage() {
     ({ employeeId }) => employeeId === deletingId,
   );
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -65,7 +65,7 @@ export function EmployeesPage() {
     const employeeNumber = String(form.get("employeeNumber") ?? "").trim();
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.createEmployee({
           name: String(form.get("name")),
           phone: String(form.get("phone")),
@@ -167,7 +167,7 @@ export function EmployeesPage() {
     }
   }
 
-  function handleBatchImport() {
+  async function handleBatchImport() {
     setError("");
 
     if (!importGroupId) {
@@ -176,7 +176,7 @@ export function EmployeesPage() {
     }
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.createEmployeesBatch({
           groupId: importGroupId,
           employees: importRows,
@@ -194,7 +194,7 @@ export function EmployeesPage() {
     }
   }
 
-  function handleEdit(event: FormEvent<HTMLFormElement>) {
+  async function handleEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -209,7 +209,7 @@ export function EmployeesPage() {
     const note = String(form.get("note") ?? "").trim();
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.updateEmployee({
           employeeId: editingId,
           groupId: String(form.get("groupId")),
@@ -228,13 +228,13 @@ export function EmployeesPage() {
     }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!deletingId || deletingEmployeeHasOrders) {
       return;
     }
 
     try {
-      execute((service) => service.deleteEmployee(deletingId));
+      await execute((service) => service.deleteEmployee(deletingId));
       setDeletingId(null);
     } catch (caughtError) {
       setError(

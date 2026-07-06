@@ -12,7 +12,8 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { QuotaPage } from "./pages/QuotaPage";
 
 function RequireEmployeeLogin() {
-  const { currentEmployee } = useEmployeeData();
+  const { currentEmployee, isLoading } = useEmployeeData();
+  if (isLoading) return null;
   return currentEmployee ? <Outlet /> : <Navigate replace to="/login" />;
 }
 

@@ -76,7 +76,7 @@ export function AdminShell() {
           <button
             aria-label="退出登录"
             className="sidebar__logout"
-            onClick={logout}
+            onClick={() => void logout()}
             title="退出登录"
             type="button"
           >
@@ -90,7 +90,7 @@ export function AdminShell() {
           <strong>疗养服务管理平台</strong>
           <div className="topbar__status">
             <span className="status-dot" />
-            Mock 数据已连接
+            PostgreSQL 数据已连接
           </div>
         </header>
         <div className="page-container">

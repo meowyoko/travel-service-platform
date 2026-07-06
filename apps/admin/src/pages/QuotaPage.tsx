@@ -40,7 +40,7 @@ export function QuotaPage() {
     ({ id }) => id === selectedEmployeeId,
   );
 
-  function handleGrant(event: FormEvent<HTMLFormElement>) {
+  async function handleGrant(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -51,7 +51,7 @@ export function QuotaPage() {
     const form = new FormData(event.currentTarget);
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.grantQuota({
           employeeId: selectedEmployeeId,
           amount: Number(form.get("amount")),

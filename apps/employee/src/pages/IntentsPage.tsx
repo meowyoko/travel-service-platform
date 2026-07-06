@@ -50,13 +50,13 @@ export function IntentsPage() {
     window.scrollTo({ top: 0 });
   }, []);
 
-  function confirmWithdrawal() {
+  async function confirmWithdrawal() {
     if (!withdrawTargetId) {
       return;
     }
 
     try {
-      withdrawPersonalIntent({ intentId: withdrawTargetId });
+      await withdrawPersonalIntent({ intentId: withdrawTargetId });
       setNotice("意向已撤销。");
     } catch (caughtError) {
       setNotice(

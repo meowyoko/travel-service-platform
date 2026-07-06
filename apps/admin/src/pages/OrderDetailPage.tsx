@@ -58,7 +58,7 @@ export function OrderDetailPage() {
   const [travelDateError, setTravelDateError] = useState("");
 
   useEffect(() => {
-    syncOrderStatuses();
+    void syncOrderStatuses();
   }, [syncOrderStatuses]);
 
   const order = data.personalOrders.find(({ id }) => id === orderId);
@@ -101,7 +101,7 @@ export function OrderDetailPage() {
     ({ status }) => status === "active",
   );
 
-  function executeStatusAction() {
+  async function executeStatusAction() {
     const action = pendingAction;
     if (!action) {
       return;
@@ -110,7 +110,7 @@ export function OrderDetailPage() {
     try {
       const target = action.target;
       if (target === "confirmed") {
-        execute((service) =>
+        await execute((service) =>
           service.confirmPersonalOrder({
             orderId: selectedOrder.id,
             operator: currentOperator?.username ?? "unknown",
@@ -120,7 +120,7 @@ export function OrderDetailPage() {
           "订单已确认并扣减额度，履约状态已按出行日期自动更新。",
         );
       } else {
-        execute((service) =>
+        await execute((service) =>
           service.updatePersonalOrderStatus({
             orderId: selectedOrder.id,
             status: target,
@@ -139,13 +139,13 @@ export function OrderDetailPage() {
     }
   }
 
-  function updateTravelDates(event: FormEvent<HTMLFormElement>) {
+  async function updateTravelDates(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setTravelDateError("");
     const form = new FormData(event.currentTarget);
 
     try {
-      execute((service) =>
+      await execute((service) =>
         service.updatePersonalOrderTravelDates({
           orderId: selectedOrder.id,
           departureDate: String(form.get("departureDate") ?? ""),
@@ -186,7 +186,7 @@ export function OrderDetailPage() {
           ].includes(order.status) ? (
             <button
               className="button button--secondary"
-              onClick={() => {
+              onClick={async () => {
                 setTravelDateError("");
                 setEditingTravelDates(true);
               }}
@@ -536,9 +536,9 @@ export function OrderDetailPage() {
             <button
               className="button button--primary"
               disabled={!assigneeDraft}
-              onClick={() => {
+              onClick={async () => {
                 try {
-                  execute((service) =>
+                  await execute((service) =>
                     service.assignPersonalOrder({
                       orderId: order.id,
                       assigneeAccountId: assigneeDraft,
