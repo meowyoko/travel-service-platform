@@ -1,6 +1,8 @@
 import type {
   PersonalIntentDto,
   PersonalOrderDto,
+  HotelRoomDailyInventoryDto,
+  HotelRoomTypeDto,
   PublicEmployee,
   QuotaTransactionDto,
   ServiceProductDto,
@@ -35,6 +37,8 @@ interface EmployeeDataContextValue {
   currentGroup: EmployeeContextData["group"];
   quotaAccount: QuotaAccount | null;
   visibleProducts: ServiceProductDto[];
+  hotelRoomTypes: HotelRoomTypeDto[];
+  hotelRoomDailyInventories: HotelRoomDailyInventoryDto[];
   intentProducts: ServiceProductDto[];
   personalIntents: PersonalIntentDto[];
   personalOrders: PersonalOrderDto[];
@@ -62,6 +66,8 @@ const emptyData: Omit<EmployeeContextData, "employee"> = {
   group: null,
   quotaAccount: null,
   visibleProducts: [],
+  hotelRoomTypes: [],
+  hotelRoomDailyInventories: [],
   personalIntents: [],
   personalOrders: [],
   personalReviews: [],
@@ -122,6 +128,8 @@ export function EmployeeDataProvider({ children }: PropsWithChildren) {
       currentGroup: data.group,
       quotaAccount: data.quotaAccount,
       visibleProducts: data.visibleProducts,
+      hotelRoomTypes: data.hotelRoomTypes,
+      hotelRoomDailyInventories: data.hotelRoomDailyInventories,
       intentProducts,
       personalIntents: data.personalIntents,
       personalOrders: data.personalOrders,

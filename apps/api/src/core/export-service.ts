@@ -52,6 +52,7 @@ const orderStatusLabels = {
 
 const productTypeLabels = {
   travel: "疗养旅游",
+  hotel: "酒店",
   insurance: "保险服务",
   medical: "医疗服务",
   health_management: "健康管理",

@@ -22,6 +22,20 @@
       "when": 1783343004325,
       "tag": "0002_exotic_ironclad",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783516800000,
+      "tag": "0003_hotel_products",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783555200000,
+      "tag": "0004_hotel_room_images",
+      "breakpoints": true
     }
   ]
 }

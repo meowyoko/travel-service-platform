@@ -5,12 +5,14 @@ import {
   type Employee,
   type Group,
   type GroupStatus,
+  type HotelProductDetails,
   type OrderStatus,
   type OperatorAccount,
   type OperatorRole,
   type PersonalIntent,
   type PersonalOrder,
   type PlatformData,
+  type ProductGalleryItem,
   type ProductType,
   type ProductVisibility,
   type QuotaTransaction,
@@ -134,12 +136,36 @@ export interface RefundPersonalOrderQuotaInput {
   operator: string;
 }
 
+export interface CreateHotelRoomTypeInput {
+  hotelProductId: string;
+  name: string;
+  imageUrl?: string;
+  bedType?: string;
+  capacity: number;
+  breakfast?: string;
+  area?: string;
+  description?: string;
+}
+
+export interface UpdateHotelRoomTypeInput extends CreateHotelRoomTypeInput {
+  roomTypeId: string;
+  status: "draft" | "published";
+}
+
+export interface UpsertHotelRoomInventoryInput {
+  roomTypeId: string;
+  date: string;
+  quotaPrice: number;
+  totalInventory: number;
+  isAvailable: boolean;
+}
+
 export interface CreateServiceProductInput {
   name: string;
   type: ProductType;
   summary: string;
   coverImage: string;
-  gallery?: string[];
+  gallery?: ProductGalleryItem[];
   quotaReference?: {
     min: number;
     max?: number;
@@ -150,6 +176,8 @@ export interface CreateServiceProductInput {
   sortOrder?: number;
   recommended?: boolean;
   travelDetails?: TravelProductDetails;
+  hotelDetails?: HotelProductDetails;
+  linkedHotelProductIds?: string[];
 }
 
 export interface UpdateServiceProductInput
@@ -173,6 +201,8 @@ export interface SubmitPersonalIntentInput {
   preferredTransport?: string;
   needsPickup?: boolean;
   accommodationPreference?: string;
+  preferredHotelProductId?: string;
+  preferredHotelRoomTypeId?: string;
   additionalNotes?: string;
   convenientContactTime?: string;
 }
@@ -204,6 +234,13 @@ export interface ConvertIntentToOrderInput {
   returnDate?: string;
   transport?: string;
   accommodation?: string;
+  hotelAccommodation?: {
+    hotelProductId: string;
+    roomTypeId?: string;
+    checkInDate: string;
+    checkOutDate: string;
+    note?: string;
+  };
   pickupService?: string;
   internalNote?: string;
 }
@@ -216,6 +253,13 @@ export interface UpdatePendingOrderInput {
   returnDate?: string;
   transport?: string;
   accommodation?: string;
+  hotelAccommodation?: {
+    hotelProductId: string;
+    roomTypeId?: string;
+    checkInDate: string;
+    checkOutDate: string;
+    note?: string;
+  } | null;
   pickupService?: string;
   internalNote?: string;
 }
@@ -381,6 +425,11 @@ function assertProductContent(product: CreateServiceProductInput): void {
   assert(product.coverImage.trim(), "商品主图不能为空");
   assert(product.serviceDescription.trim(), "服务说明不能为空");
   assert(product.notes.trim(), "注意事项不能为空");
+  for (const item of product.gallery ?? []) {
+    assert(item.imageUrl.trim(), "图文项目图片不能为空");
+    assert(item.description.trim(), "图片说明不能为空");
+    assert(item.description.trim().length <= 100, "图片说明不能超过100字");
+  }
 
   if (product.quotaReference) {
     assertPositiveAmount(product.quotaReference.min, "额度参考下限");
@@ -407,6 +456,55 @@ function assertProductContent(product: CreateServiceProductInput): void {
       "请至少选择一个适宜月份",
     );
   }
+
+  if (product.type === "hotel") {
+    const details = product.hotelDetails;
+    assert(details, "酒店类商品必须填写酒店扩展信息");
+    assert(details.city.trim(), "酒店城市不能为空");
+    assert(details.address.trim(), "酒店地址不能为空");
+  }
+}
+
+function normalizeHotelDetails(
+  details: HotelProductDetails | undefined,
+): HotelProductDetails | undefined {
+  if (!details) return undefined;
+  const { paidServices: _paidServices, ...baseDetails } = details;
+  const paidServices = (details.paidServices ?? [])
+    .map((service) => ({
+      title: service.title.trim(),
+      description: service.description.trim(),
+    }))
+    .filter(
+      ({ title, description }) => title.length > 0 || description.length > 0,
+    );
+  assert(
+    paidServices.every(({ title, description }) => title && description),
+    "付费服务标题和详情说明需同时填写",
+  );
+  const normalized: HotelProductDetails = {
+    ...baseDetails,
+    city: details.city.trim(),
+    address: details.address.trim(),
+  };
+  const starRating = details.starRating?.trim();
+  const facilities = details.facilities?.trim();
+  const trafficInfo = details.trafficInfo?.trim();
+  const checkInPolicy = details.checkInPolicy?.trim();
+  if (starRating !== undefined) normalized.starRating = starRating;
+  if (facilities !== undefined) normalized.facilities = facilities;
+  if (trafficInfo !== undefined) normalized.trafficInfo = trafficInfo;
+  if (checkInPolicy !== undefined) normalized.checkInPolicy = checkInPolicy;
+  if (paidServices.length > 0) normalized.paidServices = paidServices;
+  return normalized;
+}
+
+function hotelDetailsWithoutPaidServices(
+  details: HotelProductDetails | undefined,
+): Omit<HotelProductDetails, "paidServices"> | undefined {
+  if (!details) return undefined;
+  const { paidServices: _paidServices, ...rest } = details;
+  return rest;
 }
 
 function isSameVisibility(
@@ -1027,7 +1125,8 @@ export class PlatformService {
   }
 
   createServiceProduct(input: CreateServiceProductInput): ServiceProduct {
-    assertProductContent(input);
+      assertProductContent(input);
+      const hotelDetails = normalizeHotelDetails(input.hotelDetails);
 
     return this.repository.update((data) => {
       assert(
@@ -1075,6 +1174,12 @@ export class PlatformService {
         ...(input.travelDetails
           ? { travelDetails: structuredClone(input.travelDetails) }
           : {}),
+        ...(hotelDetails
+          ? { hotelDetails: structuredClone(hotelDetails) }
+          : {}),
+        ...(input.linkedHotelProductIds
+          ? { linkedHotelProductIds: [...input.linkedHotelProductIds] }
+          : {}),
       };
 
       data.serviceProducts.push(product);
@@ -1092,7 +1197,8 @@ export class PlatformService {
   }
 
   updateServiceProduct(input: UpdateServiceProductInput): ServiceProduct {
-    assertProductContent(input);
+      assertProductContent(input);
+      const hotelDetails = normalizeHotelDetails(input.hotelDetails);
 
     return this.repository.update((data) => {
       const product = data.serviceProducts.find(
@@ -1159,8 +1265,9 @@ export class PlatformService {
           "已有业务记录，旅游服务配置不可修改",
         );
         assert(
-          JSON.stringify(product.gallery) === JSON.stringify(input.gallery),
-          "已有业务记录，商品图库不可修改",
+          JSON.stringify(hotelDetailsWithoutPaidServices(product.hotelDetails)) ===
+            JSON.stringify(hotelDetailsWithoutPaidServices(hotelDetails)),
+          "已有业务记录，酒店基础配置不可修改",
         );
         assert(
           product.sortOrder === input.sortOrder,
@@ -1204,6 +1311,16 @@ export class PlatformService {
         product.travelDetails = structuredClone(input.travelDetails);
       } else {
         delete product.travelDetails;
+      }
+      if (hotelDetails) {
+        product.hotelDetails = structuredClone(hotelDetails);
+      } else {
+        delete product.hotelDetails;
+      }
+      if (input.linkedHotelProductIds) {
+        product.linkedHotelProductIds = [...input.linkedHotelProductIds];
+      } else {
+        delete product.linkedHotelProductIds;
       }
       if (input.sortOrder !== undefined) {
         product.sortOrder = input.sortOrder;
@@ -1348,6 +1465,12 @@ export class PlatformService {
           : {}),
         ...(input.accommodationPreference
           ? { accommodationPreference: input.accommodationPreference }
+          : {}),
+        ...(input.preferredHotelProductId
+          ? { preferredHotelProductId: input.preferredHotelProductId }
+          : {}),
+        ...(input.preferredHotelRoomTypeId
+          ? { preferredHotelRoomTypeId: input.preferredHotelRoomTypeId }
           : {}),
         ...(input.additionalNotes
           ? { additionalNotes: input.additionalNotes }
@@ -1502,6 +1625,23 @@ export class PlatformService {
         ...(input.accommodation
           ? { accommodation: input.accommodation }
           : {}),
+        ...(input.hotelAccommodation
+          ? {
+              hotelAccommodation: {
+                hotelProductId: input.hotelAccommodation.hotelProductId,
+                hotelName: "待确认酒店",
+                ...(input.hotelAccommodation.roomTypeId
+                  ? { roomTypeId: input.hotelAccommodation.roomTypeId }
+                  : {}),
+                checkInDate: input.hotelAccommodation.checkInDate,
+                checkOutDate: input.hotelAccommodation.checkOutDate,
+                nights: 1,
+                ...(input.hotelAccommodation.note
+                  ? { note: input.hotelAccommodation.note }
+                  : {}),
+              },
+            }
+          : {}),
         ...(input.pickupService
           ? { pickupService: input.pickupService }
           : {}),
@@ -1555,6 +1695,25 @@ export class PlatformService {
       }
       if (input.accommodation !== undefined) {
         order.accommodation = input.accommodation.trim();
+      }
+      if (input.hotelAccommodation !== undefined) {
+        if (input.hotelAccommodation) {
+          order.hotelAccommodation = {
+            hotelProductId: input.hotelAccommodation.hotelProductId,
+            hotelName: "待确认酒店",
+            ...(input.hotelAccommodation.roomTypeId
+              ? { roomTypeId: input.hotelAccommodation.roomTypeId }
+              : {}),
+            checkInDate: input.hotelAccommodation.checkInDate,
+            checkOutDate: input.hotelAccommodation.checkOutDate,
+            nights: 1,
+            ...(input.hotelAccommodation.note
+              ? { note: input.hotelAccommodation.note }
+              : {}),
+          };
+        } else {
+          delete order.hotelAccommodation;
+        }
       }
       if (input.pickupService !== undefined) {
         order.pickupService = input.pickupService.trim();

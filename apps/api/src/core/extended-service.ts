@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import {
   ADMIN_PAGE_PERMISSIONS,
   type AdminPagePermission,
+  type HotelProductDetails,
+  type OrderHotelAccommodationSnapshot,
   type ProductVisibility,
 } from "@travel/domain";
 import type {
@@ -10,16 +12,19 @@ import type {
   AssignOrderRequest,
   CloseIntentRequest,
   CreateEmployeesBatchRequest,
+  CreateHotelRoomTypeRequest,
   CreateOperatorAccountRequest,
   ModerateReviewRequest,
   PublicOperatorAccount,
   RefundOrderQuotaRequest,
   UpdateEmployeeRequest,
   UpdateGroupRequest,
+  UpdateHotelRoomTypeRequest,
   UpdateOperatorAccountRequest,
   UpdateOrderTravelDatesRequest,
   UpdatePendingOrderRequest,
   UpdateServiceProductRequest,
+  UpsertHotelRoomInventoryRequest,
 } from "@travel/contracts";
 import { and, count, eq, inArray } from "drizzle-orm";
 
@@ -28,10 +33,13 @@ import type { Database } from "../db/client.js";
 import {
   employees,
   groups,
+  hotelRoomDailyInventories,
+  hotelRoomTypes,
   operatorAccounts,
   operatorPagePermissions,
   personalIntents,
   personalOrders,
+  productLinkedHotels,
   productVisibleGroups,
   quotaAccounts,
   quotaTransactions,
@@ -40,10 +48,60 @@ import {
   sessions,
 } from "../db/schema.js";
 import { ApiError } from "../errors.js";
+import { normalizeProductGalleryInput } from "./product-gallery.js";
 
 function optionalText(value: string | undefined): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
+}
+
+function normalizeHotelDetails(
+  details: HotelProductDetails | undefined,
+): HotelProductDetails | undefined {
+  if (!details) return undefined;
+  const { paidServices: _paidServices, ...baseDetails } = details;
+  const paidServices = (details.paidServices ?? [])
+    .map((service) => ({
+      title: service.title.trim(),
+      description: service.description.trim(),
+    }))
+    .filter(
+      ({ title, description }) => title.length > 0 || description.length > 0,
+    );
+  if (
+    paidServices.some(
+      ({ title, description }) => !title || !description,
+    )
+  ) {
+    throw new ApiError(
+      400,
+      "INVALID_HOTEL_PAID_SERVICES",
+      "付费服务标题和详情说明需同时填写",
+    );
+  }
+  const normalized: HotelProductDetails = {
+    ...baseDetails,
+    city: details.city.trim(),
+    address: details.address.trim(),
+  };
+  const starRating = details.starRating?.trim();
+  const facilities = details.facilities?.trim();
+  const trafficInfo = details.trafficInfo?.trim();
+  const checkInPolicy = details.checkInPolicy?.trim();
+  if (starRating !== undefined) normalized.starRating = starRating;
+  if (facilities !== undefined) normalized.facilities = facilities;
+  if (trafficInfo !== undefined) normalized.trafficInfo = trafficInfo;
+  if (checkInPolicy !== undefined) normalized.checkInPolicy = checkInPolicy;
+  if (paidServices.length > 0) normalized.paidServices = paidServices;
+  return normalized;
+}
+
+function hotelDetailsWithoutPaidServices(
+  details: HotelProductDetails | null | undefined,
+): Omit<HotelProductDetails, "paidServices"> | null {
+  if (!details) return null;
+  const { paidServices: _paidServices, ...rest } = details;
+  return rest;
 }
 
 function normalizePermissions(
@@ -92,6 +150,145 @@ function assertDateRange(departureDate: string, returnDate: string): void {
       400,
       "INVALID_TRAVEL_DATES",
       "返程日期不能早于出行日期",
+    );
+  }
+}
+
+function enumerateNights(checkInDate: string, checkOutDate: string): string[] {
+  if (checkOutDate <= checkInDate) {
+    throw new ApiError(400, "INVALID_STAY_DATES", "离店日期必须晚于入住日期");
+  }
+  const nights: string[] = [];
+  const cursor = new Date(`${checkInDate}T00:00:00.000Z`);
+  const end = new Date(`${checkOutDate}T00:00:00.000Z`);
+  while (cursor < end) {
+    nights.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return nights;
+}
+
+async function buildHotelAccommodationSnapshot(
+  tx: any,
+  input:
+    | {
+        hotelProductId: string;
+        roomTypeId?: string;
+        checkInDate: string;
+        checkOutDate: string;
+        note?: string;
+      }
+    | undefined,
+): Promise<OrderHotelAccommodationSnapshot | null> {
+  if (!input) return null;
+  const nights = enumerateNights(input.checkInDate, input.checkOutDate);
+  const [hotel] = await tx
+    .select()
+    .from(serviceProducts)
+    .where(eq(serviceProducts.id, input.hotelProductId));
+  if (!hotel || hotel.type !== "hotel") {
+    throw new ApiError(404, "HOTEL_NOT_FOUND", "选择的酒店商品不存在");
+  }
+  if (hotel.status !== "published") {
+    throw new ApiError(409, "HOTEL_NOT_PUBLISHED", "未上架酒店不能用于订单");
+  }
+
+  let roomTypeName: string | undefined;
+  let quotaPricePerNight: number | undefined;
+  let totalQuota: number | undefined;
+  if (input.roomTypeId) {
+    const [roomType] = await tx
+      .select()
+      .from(hotelRoomTypes)
+      .where(eq(hotelRoomTypes.id, input.roomTypeId));
+    if (!roomType || roomType.hotelProductId !== hotel.id) {
+      throw new ApiError(404, "ROOM_TYPE_NOT_FOUND", "选择的房型不存在");
+    }
+    if (roomType.status !== "published") {
+      throw new ApiError(409, "ROOM_TYPE_NOT_AVAILABLE", "未启用房型不能用于订单");
+    }
+    const inventories = await tx
+      .select()
+      .from(hotelRoomDailyInventories)
+      .where(
+        and(
+          eq(hotelRoomDailyInventories.roomTypeId, roomType.id),
+          inArray(hotelRoomDailyInventories.date, nights),
+        ),
+      );
+    if (inventories.length !== nights.length) {
+      throw new ApiError(409, "ROOM_INVENTORY_MISSING", "所选日期缺少房态库存");
+    }
+    if (
+      inventories.some(
+        (item: { isAvailable: boolean; usedInventory: number; totalInventory: number }) =>
+          !item.isAvailable || item.usedInventory >= item.totalInventory,
+      )
+    ) {
+      throw new ApiError(409, "ROOM_INVENTORY_UNAVAILABLE", "所选日期房态库存不足");
+    }
+    roomTypeName = roomType.name;
+    totalQuota = inventories.reduce(
+      (sum: number, item: { quotaPrice: number }) => sum + item.quotaPrice,
+      0,
+    );
+    quotaPricePerNight =
+      inventories.length === 1
+        ? inventories[0]!.quotaPrice
+        : Math.round((totalQuota ?? 0) / inventories.length);
+  }
+
+  return {
+    hotelProductId: hotel.id,
+    hotelName: hotel.name,
+    ...(input.roomTypeId ? { roomTypeId: input.roomTypeId } : {}),
+    ...(roomTypeName ? { roomTypeName } : {}),
+    checkInDate: input.checkInDate,
+    checkOutDate: input.checkOutDate,
+    nights: nights.length,
+    ...(quotaPricePerNight !== undefined ? { quotaPricePerNight } : {}),
+    ...(totalQuota !== undefined ? { totalQuota } : {}),
+    ...(hotel.hotelDetails?.address ? { address: hotel.hotelDetails.address } : {}),
+    ...(input.note?.trim() ? { note: input.note.trim() } : {}),
+  };
+}
+
+async function assertHotelSelectableForProduct(
+  tx: any,
+  product: { id: string; type: string },
+  hotelProductId: string,
+): Promise<void> {
+  if (product.type === "hotel") {
+    if (hotelProductId !== product.id) {
+      throw new ApiError(
+        409,
+        "HOTEL_NOT_MATCH_PRODUCT",
+        "酒店商品订单只能选择当前酒店",
+      );
+    }
+    return;
+  }
+  if (product.type !== "travel") {
+    throw new ApiError(
+      409,
+      "HOTEL_NOT_SUPPORTED",
+      "当前商品类型不支持选择酒店住宿",
+    );
+  }
+  const [linkedHotel] = await tx
+    .select()
+    .from(productLinkedHotels)
+    .where(
+      and(
+        eq(productLinkedHotels.productId, product.id),
+        eq(productLinkedHotels.hotelProductId, hotelProductId),
+      ),
+    );
+  if (!linkedHotel) {
+    throw new ApiError(
+      409,
+      "HOTEL_NOT_LINKED",
+      "所选酒店不在当前疗养产品可选范围内",
     );
   }
 }
@@ -414,6 +611,124 @@ export async function refundOrderQuota(
   });
 }
 
+export async function createHotelRoomType(
+  db: Database,
+  hotelProductId: string,
+  input: CreateHotelRoomTypeRequest,
+): Promise<string> {
+  const name = input.name.trim();
+  if (!name) {
+    throw new ApiError(400, "INVALID_ROOM_TYPE", "房型名称不能为空");
+  }
+  const [hotel] = await db
+    .select()
+    .from(serviceProducts)
+    .where(eq(serviceProducts.id, hotelProductId));
+  if (!hotel || hotel.type !== "hotel") {
+    throw new ApiError(404, "HOTEL_NOT_FOUND", "酒店商品不存在");
+  }
+  const id = randomUUID();
+  const now = new Date();
+  await db.insert(hotelRoomTypes).values({
+    id,
+    hotelProductId,
+    name,
+    imageUrl: optionalText(input.imageUrl),
+    bedType: optionalText(input.bedType),
+    capacity: input.capacity,
+    breakfast: optionalText(input.breakfast),
+    area: optionalText(input.area),
+    description: optionalText(input.description),
+    status: "draft",
+    createdAt: now,
+    updatedAt: now,
+  });
+  return id;
+}
+
+export async function updateHotelRoomType(
+  db: Database,
+  roomTypeId: string,
+  input: UpdateHotelRoomTypeRequest,
+): Promise<void> {
+  const result = await db
+    .update(hotelRoomTypes)
+    .set({
+      name: input.name.trim(),
+      imageUrl: optionalText(input.imageUrl),
+      bedType: optionalText(input.bedType),
+      capacity: input.capacity,
+      breakfast: optionalText(input.breakfast),
+      area: optionalText(input.area),
+      description: optionalText(input.description),
+      status: input.status,
+      updatedAt: new Date(),
+    })
+    .where(eq(hotelRoomTypes.id, roomTypeId))
+    .returning({ id: hotelRoomTypes.id });
+  if (result.length === 0) {
+    throw new ApiError(404, "ROOM_TYPE_NOT_FOUND", "房型不存在");
+  }
+}
+
+export async function upsertHotelRoomInventory(
+  db: Database,
+  roomTypeId: string,
+  input: UpsertHotelRoomInventoryRequest,
+): Promise<string> {
+  return db.transaction(async (tx) => {
+    const [roomType] = await tx
+      .select()
+      .from(hotelRoomTypes)
+      .where(eq(hotelRoomTypes.id, roomTypeId));
+    if (!roomType) {
+      throw new ApiError(404, "ROOM_TYPE_NOT_FOUND", "房型不存在");
+    }
+    const [current] = await tx
+      .select()
+      .from(hotelRoomDailyInventories)
+      .where(
+        and(
+          eq(hotelRoomDailyInventories.roomTypeId, roomTypeId),
+          eq(hotelRoomDailyInventories.date, input.date),
+        ),
+      )
+      .for("update");
+    if (current && input.totalInventory < current.usedInventory) {
+      throw new ApiError(
+        409,
+        "INVENTORY_BELOW_USED",
+        "总库存不能小于已使用库存",
+      );
+    }
+    const now = new Date();
+    if (current) {
+      await tx
+        .update(hotelRoomDailyInventories)
+        .set({
+          quotaPrice: input.quotaPrice,
+          totalInventory: input.totalInventory,
+          isAvailable: input.isAvailable,
+          updatedAt: now,
+        })
+        .where(eq(hotelRoomDailyInventories.id, current.id));
+      return current.id;
+    }
+    const id = randomUUID();
+    await tx.insert(hotelRoomDailyInventories).values({
+      id,
+      roomTypeId,
+      date: input.date,
+      quotaPrice: input.quotaPrice,
+      totalInventory: input.totalInventory,
+      usedInventory: 0,
+      isAvailable: input.isAvailable,
+      updatedAt: now,
+    });
+    return id;
+  });
+}
+
 function sameVisibility(
   left: ProductVisibility,
   right: ProductVisibility,
@@ -426,11 +741,33 @@ function sameVisibility(
   );
 }
 
+function normalizeJson(value: unknown): unknown {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeJson(item));
+  }
+  if (typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+        .map(([key, item]) => [key, normalizeJson(item)]),
+    );
+  }
+  return value;
+}
+
+function sameNullableJson(left: unknown, right: unknown): boolean {
+  return JSON.stringify(normalizeJson(left)) === JSON.stringify(normalizeJson(right));
+}
+
 export async function updateServiceProduct(
   db: Database,
   productId: string,
   input: UpdateServiceProductRequest,
 ): Promise<void> {
+  const gallery = normalizeProductGalleryInput(input.gallery);
   await db.transaction(async (tx) => {
     const [product] = await tx
       .select()
@@ -466,6 +803,41 @@ export async function updateServiceProduct(
       input.visibility.scope === "all_groups"
         ? { scope: "all_groups" }
         : { scope: "specified_groups", groupIds: nextGroupIds };
+    const hotelDetails = normalizeHotelDetails(input.hotelDetails);
+    if (input.type === "hotel" && !hotelDetails) {
+      throw new ApiError(
+        400,
+        "HOTEL_DETAILS_REQUIRED",
+        "酒店类商品必须填写酒店扩展信息",
+      );
+    }
+    if (
+      hotelDetails &&
+      (!hotelDetails.city || !hotelDetails.address)
+    ) {
+      throw new ApiError(
+        400,
+        "INVALID_HOTEL_DETAILS",
+        "酒店商品的城市和地址不能为空",
+      );
+    }
+    const linkedHotelProductIds = input.linkedHotelProductIds ?? [];
+    if (linkedHotelProductIds.length > 0) {
+      const linkedHotels = await tx
+        .select({ id: serviceProducts.id, type: serviceProducts.type })
+        .from(serviceProducts)
+        .where(inArray(serviceProducts.id, linkedHotelProductIds));
+      if (
+        linkedHotels.length !== linkedHotelProductIds.length ||
+        linkedHotels.some(({ type }) => type !== "hotel")
+      ) {
+        throw new ApiError(
+          400,
+          "INVALID_LINKED_HOTELS",
+          "疗养产品只能绑定已存在的酒店商品",
+        );
+      }
+    }
     const [intentUsage, orderUsage] = await Promise.all([
       tx
         .select({ value: count() })
@@ -482,16 +854,20 @@ export async function updateServiceProduct(
       if (
         product.name !== input.name.trim() ||
         product.type !== input.type ||
-        JSON.stringify(product.quotaReference) !==
-          JSON.stringify(input.quotaReference) ||
+        !sameNullableJson(product.quotaReference, input.quotaReference) ||
         !sameVisibility(currentVisibility, nextVisibility) ||
         product.travelDetails?.destination !==
           input.travelDetails?.destination ||
         product.travelDetails?.recommendedStayDays !==
           input.travelDetails?.recommendedStayDays ||
-        JSON.stringify(product.travelDetails?.suitableTravelMonths) !==
-          JSON.stringify(input.travelDetails?.suitableTravelMonths) ||
-        JSON.stringify(product.gallery) !== JSON.stringify(input.gallery) ||
+        !sameNullableJson(
+          product.travelDetails?.suitableTravelMonths,
+          input.travelDetails?.suitableTravelMonths,
+        ) ||
+        !sameNullableJson(
+          hotelDetailsWithoutPaidServices(product.hotelDetails),
+          hotelDetailsWithoutPaidServices(hotelDetails),
+        ) ||
         product.sortOrder !== (input.sortOrder ?? null) ||
         product.recommended !== (input.recommended ?? null)
       ) {
@@ -521,7 +897,7 @@ export async function updateServiceProduct(
         type: input.type,
         summary: input.summary.trim(),
         coverImage: input.coverImage.trim(),
-        gallery: input.gallery ?? null,
+        gallery: gallery ?? null,
         quotaReference: input.quotaReference ?? null,
         serviceDescription: input.serviceDescription.trim(),
         notes: input.notes.trim(),
@@ -529,6 +905,7 @@ export async function updateServiceProduct(
         sortOrder: input.sortOrder ?? null,
         recommended: input.recommended ?? null,
         travelDetails: input.travelDetails ?? null,
+        hotelDetails: hotelDetails ?? null,
         updatedAt: new Date(),
       })
       .where(eq(serviceProducts.id, product.id));
@@ -538,6 +915,17 @@ export async function updateServiceProduct(
     if (nextGroupIds.length > 0) {
       await tx.insert(productVisibleGroups).values(
         nextGroupIds.map((groupId) => ({ productId, groupId })),
+      );
+    }
+    await tx
+      .delete(productLinkedHotels)
+      .where(eq(productLinkedHotels.productId, product.id));
+    if (linkedHotelProductIds.length > 0) {
+      await tx.insert(productLinkedHotels).values(
+        linkedHotelProductIds.map((hotelProductId) => ({
+          productId,
+          hotelProductId,
+        })),
       );
     }
   });
@@ -656,6 +1044,29 @@ export async function updatePendingOrder(
       }
       assertDateRange(departureDate, returnDate);
     }
+    let hotelAccommodation: OrderHotelAccommodationSnapshot | null | undefined;
+    if (input.hotelAccommodation !== undefined) {
+      if (input.hotelAccommodation === null) {
+        hotelAccommodation = null;
+      } else {
+        const [product] = await tx
+          .select({ id: serviceProducts.id, type: serviceProducts.type })
+          .from(serviceProducts)
+          .where(eq(serviceProducts.id, order.sourceProductId));
+        if (!product) {
+          throw new ApiError(404, "PRODUCT_NOT_FOUND", "订单关联商品不存在");
+        }
+        await assertHotelSelectableForProduct(
+          tx,
+          product,
+          input.hotelAccommodation.hotelProductId,
+        );
+        hotelAccommodation = await buildHotelAccommodationSnapshot(
+          tx,
+          input.hotelAccommodation,
+        );
+      }
+    }
     await tx
       .update(personalOrders)
       .set({
@@ -673,6 +1084,7 @@ export async function updatePendingOrder(
         ...(input.accommodation !== undefined
           ? { accommodation: optionalText(input.accommodation) }
           : {}),
+        ...(hotelAccommodation !== undefined ? { hotelAccommodation } : {}),
         ...(input.pickupService !== undefined
           ? { pickupService: optionalText(input.pickupService) }
           : {}),

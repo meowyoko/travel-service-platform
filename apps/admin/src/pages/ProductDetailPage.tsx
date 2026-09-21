@@ -5,14 +5,22 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { Modal } from "../components/Modal";
 import { MonthPicker } from "../components/MonthPicker";
+import {
+  createProductGalleryDrafts,
+  ProductGalleryField,
+  type ProductGalleryDraft,
+  uploadProductGallery,
+} from "../components/ProductGalleryField";
 import { ProductImageField } from "../components/ProductImageField";
 import { StatusBadge } from "../components/StatusBadge";
+import { VisibilityGroupsText } from "../components/VisibilityGroupsText";
 import { useAdminData } from "../context/AdminDataContext";
 import { uploadProductImage } from "../lib/api";
 import { formatDate, formatQuota } from "../lib/format";
 
 const productTypeLabel = {
   travel: "疗养旅游",
+  hotel: "酒店",
   insurance: "保险服务",
   medical: "医疗服务",
   health_management: "健康管理",
@@ -35,6 +43,7 @@ export function ProductDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [error, setError] = useState("");
   const [pageMessage, setPageMessage] = useState("");
+  const [editGallery, setEditGallery] = useState<ProductGalleryDraft[]>([]);
   const [editTravelMonths, setEditTravelMonths] = useState<number[]>([]);
 
   const product = data.serviceProducts.find(({ id }) => id === productId);
@@ -97,7 +106,11 @@ export function ProductDetailPage() {
         : currentProduct.coverImage;
     const maxQuota = String(form.get("quotaMax") ?? "").trim();
     const groupIds = form.getAll("groupIds").map(String);
+    const linkedHotelProductIds = form
+      .getAll("linkedHotelProductIds")
+      .map(String);
     const useLockedValues = usage.hasBusinessRecords;
+    const galleryItems = await uploadProductGallery(editGallery);
 
     return {
       productId: currentProduct.id,
@@ -107,9 +120,7 @@ export function ProductDetailPage() {
       type: useLockedValues ? currentProduct.type : editProductType,
       summary: String(form.get("summary")),
       coverImage,
-      ...(currentProduct.gallery
-        ? { gallery: structuredClone(currentProduct.gallery) }
-        : {}),
+      gallery: galleryItems,
       quotaReference: {
         min: useLockedValues
           ? currentProduct.quotaReference!.min
@@ -158,6 +169,18 @@ export function ProductDetailPage() {
                 : String(form.get("recommendedStayDays")),
               serviceScope: String(form.get("serviceScope")),
             },
+            linkedHotelProductIds,
+          }
+        : {}),
+      ...((useLockedValues ? currentProduct.type : editProductType) ===
+      "hotel"
+        ? {
+            hotelDetails: currentProduct.hotelDetails
+              ? structuredClone(currentProduct.hotelDetails)
+              : {
+                  city: String(form.get("city") ?? ""),
+                  address: String(form.get("address") ?? ""),
+                },
           }
         : {}),
     };
@@ -237,6 +260,11 @@ export function ProductDetailPage() {
   }
 
   const travel = product.travelDetails;
+  const linkedHotels = data.serviceProducts.filter(
+    (item) =>
+      product.linkedHotelProductIds?.includes(item.id) &&
+      item.type === "hotel",
+  );
   const immutableDisabled = usage.hasBusinessRecords;
 
   return (
@@ -274,6 +302,7 @@ export function ProductDetailPage() {
                   product.travelDetails?.suitableTravelMonths ?? [],
                 ),
               );
+              setEditGallery(createProductGalleryDrafts(product.gallery));
               setEditing(true);
             }}
             type="button"
@@ -320,7 +349,15 @@ export function ProductDetailPage() {
           <div className="detail-list">
             <div><span>商品类型</span><strong>{productTypeLabel[product.type]}</strong></div>
             <div><span>额度参考</span><strong>{product.quotaReference ? `${formatQuota(product.quotaReference.min)}${product.quotaReference.max ? `–${formatQuota(product.quotaReference.max)}` : ""}` : "待确认"}</strong></div>
-            <div><span>可见范围</span><strong>{product.visibility.scope === "all_groups" ? "全部合作集团" : `${product.visibility.groupIds.length} 个指定集团`}</strong></div>
+            <div>
+              <span>可见范围</span>
+              <strong>
+                <VisibilityGroupsText
+                  groups={data.groups}
+                  visibility={product.visibility}
+                />
+              </strong>
+            </div>
             <div><span>更新时间</span><strong>{formatDate(product.updatedAt)}</strong></div>
             <div className="detail-list__wide"><span>商品简介</span><p>{product.summary}</p></div>
             <div className="detail-list__wide"><span>服务说明</span><p>{product.serviceDescription}</p></div>
@@ -346,6 +383,21 @@ export function ProductDetailPage() {
             <div><span>适宜月份</span><strong>{travel.suitableTravelMonths.map((month) => `${month} 月`).join("、")}</strong></div>
             <div className="detail-list__wide"><span>目的地特色</span><p>{travel.destinationHighlights}</p></div>
             <div className="detail-list__wide"><span>服务范围说明</span><p>{travel.serviceScope}</p></div>
+            <div className="detail-list__wide"><span>可选酒店</span><p>{linkedHotels.length > 0 ? linkedHotels.map(({ name }) => name).join("、") : "未设置"}</p></div>
+          </div>
+        </section>
+      ) : null}
+
+      {product.hotelDetails ? (
+        <section className="content-card">
+          <div className="content-card__header"><h2>酒店信息</h2></div>
+          <div className="detail-list">
+            <div><span>城市/区域</span><strong>{product.hotelDetails.city}</strong></div>
+            <div><span>酒店定位</span><strong>{product.hotelDetails.starRating ?? "未填写"}</strong></div>
+            <div className="detail-list__wide"><span>地址</span><p>{product.hotelDetails.address}</p></div>
+            <div className="detail-list__wide"><span>设施服务</span><p>{product.hotelDetails.facilities ?? "未填写"}</p></div>
+            <div className="detail-list__wide"><span>交通信息</span><p>{product.hotelDetails.trafficInfo ?? "未填写"}</p></div>
+            <div className="detail-list__wide"><span>入住政策</span><p>{product.hotelDetails.checkInPolicy ?? "未填写"}</p></div>
           </div>
         </section>
       ) : null}
@@ -375,6 +427,17 @@ export function ProductDetailPage() {
           <label className="field field--wide"><span>商品名称</span><input defaultValue={product.name} disabled={immutableDisabled} name="name" required /></label>
           <label className="field"><span>商品类型</span><select disabled={immutableDisabled} name="type" onChange={(event) => setEditProductType(event.target.value as keyof typeof productTypeLabel)} value={editProductType}>{Object.entries(productTypeLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <ProductImageField currentImage={product.coverImage} />
+          <ProductGalleryField
+            label={
+              editProductType === "hotel"
+                ? "酒店设施图文"
+                : editProductType === "travel"
+                  ? "项目介绍图文"
+                  : "图文介绍"
+            }
+            onChange={setEditGallery}
+            value={editGallery}
+          />
           <label className="field"><span>额度参考下限</span><input defaultValue={product.quotaReference?.min} disabled={immutableDisabled} min="1" name="quotaMin" required type="number" /></label>
           <label className="field"><span>额度参考上限</span><input defaultValue={product.quotaReference?.max} disabled={immutableDisabled} min="1" name="quotaMax" type="number" /></label>
           <label className="field field--wide"><span>商品简介</span><textarea defaultValue={product.summary} name="summary" required rows={2} /></label>
@@ -399,6 +462,22 @@ export function ProductDetailPage() {
                 value={editTravelMonths}
               />
               <label className="field field--wide"><span>服务范围说明（二次确认字段）</span><textarea defaultValue={travel?.serviceScope} name="serviceScope" required rows={2} /></label>
+              <fieldset className="checkbox-group field--wide">
+                <legend>可选酒店</legend>
+                {data.serviceProducts
+                  .filter((item) => item.type === "hotel")
+                  .map((hotel) => (
+                    <label key={hotel.id}>
+                      <input
+                        defaultChecked={product.linkedHotelProductIds?.includes(hotel.id)}
+                        name="linkedHotelProductIds"
+                        type="checkbox"
+                        value={hotel.id}
+                      />
+                      <span>{hotel.name}</span>
+                    </label>
+                  ))}
+              </fieldset>
             </>
           ) : null}
           {error ? <p className="form-error field--wide">{error}</p> : null}

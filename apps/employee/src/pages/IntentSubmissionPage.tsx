@@ -67,14 +67,16 @@ export function IntentSubmissionPage() {
     personalOrders,
     quotaAccount,
     submitPersonalIntent,
+    hotelRoomTypes,
     visibleProducts,
   } = useEmployeeData();
   const product = visibleProducts.find(({ id }) => id === productId);
   const travel = product?.travelDetails;
+  const isHotelProduct = product?.type === "hotel";
   const today = useMemo(getTodayInShanghai, []);
   const transportOptions = travel?.transportOptions ?? [];
   const initialStayDays = getSuggestedStayDays(
-    travel?.recommendedStayDays,
+    isHotelProduct ? undefined : travel?.recommendedStayDays,
   );
   const initialTransport = transportOptions[0] ?? "";
   const [expectedTravelDate, setExpectedTravelDate] = useState("");
@@ -85,6 +87,23 @@ export function IntentSubmissionPage() {
     useState(initialTransport);
   const [accommodationPreference, setAccommodationPreference] =
     useState("无特别要求");
+  const linkedHotels = useMemo(() => {
+    if (!product) return [];
+    if (product.type === "hotel") return [product];
+    return visibleProducts.filter(
+      (item) =>
+        item.type === "hotel" &&
+        product.linkedHotelProductIds?.includes(item.id),
+    );
+  }, [product, visibleProducts]);
+  const [preferredHotelProductId, setPreferredHotelProductId] = useState("");
+  const [preferredHotelRoomTypeId, setPreferredHotelRoomTypeId] = useState("");
+  const selectedHotelId =
+    preferredHotelProductId || (product?.type === "hotel" ? product.id : "");
+  const selectableRoomTypes = hotelRoomTypes.filter(
+    ({ hotelProductId, status }) =>
+      hotelProductId === selectedHotelId && status === "published",
+  );
   const [needsPickup, setNeedsPickup] = useState(false);
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [convenientContactTime, setConvenientContactTime] = useState("随时");
@@ -101,7 +120,9 @@ export function IntentSubmissionPage() {
     expectedStayDays !== initialStayDays ||
     companionCount !== 0 ||
     preferredTransport !== initialTransport ||
-    accommodationPreference !== "无特别要求" ||
+    (!isHotelProduct && accommodationPreference !== "无特别要求") ||
+    Boolean(preferredHotelProductId) ||
+    Boolean(preferredHotelRoomTypeId) ||
     needsPickup ||
     Boolean(additionalNotes.trim()) ||
     convenientContactTime !== "随时";
@@ -146,7 +167,7 @@ export function IntentSubmissionPage() {
     event.preventDefault();
     setPageError("");
 
-    const suitableMonths = travel?.suitableTravelMonths;
+    const suitableMonths = isHotelProduct ? undefined : travel?.suitableTravelMonths;
     const selectedMonth = Number(expectedTravelDate.slice(5, 7));
     if (
       suitableMonths?.length &&
@@ -165,8 +186,12 @@ export function IntentSubmissionPage() {
       companionCount,
       ...(preferredTransport ? { preferredTransport } : {}),
       needsPickup,
-      ...(accommodationPreference !== "无特别要求"
+      ...(!isHotelProduct && accommodationPreference !== "无特别要求"
         ? { accommodationPreference }
+        : {}),
+      ...(selectedHotelId ? { preferredHotelProductId: selectedHotelId } : {}),
+      ...(preferredHotelRoomTypeId
+        ? { preferredHotelRoomTypeId }
         : {}),
       ...(additionalNotes.trim()
         ? { additionalNotes: additionalNotes.trim() }
@@ -284,9 +309,9 @@ export function IntentSubmissionPage() {
         </section>
 
         <section className="intent-form-section">
-          <h2>行程安排</h2>
+          <h2>{isHotelProduct ? "入住安排" : "行程安排"}</h2>
           <label className="intent-field">
-            <span>预计出行日期 <em>*</em></span>
+            <span>{isHotelProduct ? "计划入住日期" : "预计出行日期"} <em>*</em></span>
             <div className="intent-input-with-icon">
               <CalendarDays size={17} />
               <input
@@ -299,7 +324,7 @@ export function IntentSubmissionPage() {
                 value={expectedTravelDate}
               />
             </div>
-            {travel?.suitableTravelMonths.length ? (
+            {!isHotelProduct && travel?.suitableTravelMonths.length ? (
               <small>
                 适宜月份：
                 {formatSuitableMonths(travel.suitableTravelMonths)}
@@ -308,10 +333,10 @@ export function IntentSubmissionPage() {
           </label>
 
           <div className="intent-field">
-            <span>期望停留天数 <em>*</em></span>
+            <span>{isHotelProduct ? "计划入住天数" : "计划疗养天数"} <em>*</em></span>
             <div className="intent-stepper">
               <button
-                aria-label="减少停留天数"
+                aria-label={isHotelProduct ? "减少入住天数" : "减少疗养天数"}
                 disabled={expectedStayDays <= 1}
                 onClick={() =>
                   setExpectedStayDays((value) => Math.max(1, value - 1))
@@ -332,14 +357,14 @@ export function IntentSubmissionPage() {
                 value={expectedStayDays}
               />
               <button
-                aria-label="增加停留天数"
+                aria-label={isHotelProduct ? "增加入住天数" : "增加疗养天数"}
                 onClick={() => setExpectedStayDays((value) => value + 1)}
                 type="button"
               >
                 <Plus size={17} />
               </button>
             </div>
-            {travel?.recommendedStayDays ? (
+            {!isHotelProduct && travel?.recommendedStayDays ? (
               <small>商品建议：{travel.recommendedStayDays}</small>
             ) : null}
           </div>
@@ -398,30 +423,78 @@ export function IntentSubmissionPage() {
             </div>
           ) : null}
 
-          <div className="intent-field">
-            <span>住宿偏好</span>
-            <div className="intent-choice-grid intent-choice-grid-three">
-              {ACCOMMODATION_OPTIONS.map((option) => (
-                <label key={option}>
-                  <input
-                    checked={accommodationPreference === option}
-                    name="accommodation"
-                    onChange={() => setAccommodationPreference(option)}
-                    type="radio"
-                  />
-                  <BedDouble size={19} />
-                  <span>{option}</span>
-                </label>
-              ))}
+          {!isHotelProduct ? (
+            <div className="intent-field">
+              <span>住宿偏好</span>
+              <div className="intent-choice-grid intent-choice-grid-three">
+                {ACCOMMODATION_OPTIONS.map((option) => (
+                  <label key={option}>
+                    <input
+                      checked={accommodationPreference === option}
+                      name="accommodation"
+                      onChange={() => setAccommodationPreference(option)}
+                      type="radio"
+                    />
+                    <BedDouble size={19} />
+                    <span>{option}</span>
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
+
+          {linkedHotels.length > 0 ? (
+            <div className="intent-field">
+              <span>意向酒店</span>
+              <div className="intent-input-with-icon">
+                <BedDouble size={17} />
+                <select
+                  onChange={(event) => {
+                    setPreferredHotelProductId(event.target.value);
+                    setPreferredHotelRoomTypeId("");
+                  }}
+                  value={selectedHotelId}
+                >
+                  {product.type !== "hotel" ? (
+                    <option value="">由工作人员推荐</option>
+                  ) : null}
+                  {linkedHotels.map((hotel) => (
+                    <option key={hotel.id} value={hotel.id}>
+                      {hotel.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {selectableRoomTypes.length > 0 ? (
+                <div className="intent-input-with-icon">
+                  <BedDouble size={17} />
+                  <select
+                    onChange={(event) =>
+                      setPreferredHotelRoomTypeId(event.target.value)
+                    }
+                    value={preferredHotelRoomTypeId}
+                  >
+                    <option value="">房型待沟通</option>
+                    {selectableRoomTypes.map((room) => (
+                      <option key={room.id} value={room.id}>
+                        {room.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              <small>
+                仅显示该服务商品可选择的合作酒店，最终房态以工作人员确认为准。
+              </small>
+            </div>
+          ) : null}
 
           <label className="intent-toggle">
             <span>
               <BusFront size={19} />
               <span>
-                <strong>需要接送服务</strong>
-                <small>由工作人员协调接站或送站</small>
+                <strong>咨询接送服务</strong>
+                <small>可能产生额外费用，工作人员会根据实际安排确认</small>
               </span>
             </span>
             <input

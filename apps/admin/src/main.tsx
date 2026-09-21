@@ -8,6 +8,11 @@ import "./styles/design-tokens.css";
 import "./styles/global.css";
 
 const rootElement = document.getElementById("root");
+const routerBasename =
+  import.meta.env.BASE_URL === "/"
+    ? undefined
+    : import.meta.env.BASE_URL.replace(/\/$/, "");
+const routerProps = routerBasename ? { basename: routerBasename } : {};
 
 if (!rootElement) {
   throw new Error("未找到应用挂载节点 #root");
@@ -15,7 +20,7 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter {...routerProps}>
       <AdminDataProvider>
         <App />
       </AdminDataProvider>

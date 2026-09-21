@@ -5,8 +5,14 @@ import { Link } from "react-router-dom";
 import { Modal } from "../components/Modal";
 import { MonthPicker } from "../components/MonthPicker";
 import { Pagination } from "../components/Pagination";
+import {
+  ProductGalleryField,
+  type ProductGalleryDraft,
+  uploadProductGallery,
+} from "../components/ProductGalleryField";
 import { ProductImageField } from "../components/ProductImageField";
 import { StatusBadge } from "../components/StatusBadge";
+import { VisibilityGroupsText } from "../components/VisibilityGroupsText";
 import { useAdminData } from "../context/AdminDataContext";
 import { usePaginatedList } from "../hooks/usePaginatedList";
 import { uploadProductImage } from "../lib/api";
@@ -15,10 +21,19 @@ import { formatDate, formatQuota } from "../lib/format";
 
 const productTypeLabel = {
   travel: "疗养旅游",
+  hotel: "酒店",
   insurance: "保险服务",
   medical: "医疗服务",
   health_management: "健康管理",
   other: "其他",
+} as const;
+
+const creatableProductTypes = {
+  travel: productTypeLabel.travel,
+  insurance: productTypeLabel.insurance,
+  medical: productTypeLabel.medical,
+  health_management: productTypeLabel.health_management,
+  other: productTypeLabel.other,
 } as const;
 
 export function ProductsPage() {
@@ -35,6 +50,7 @@ export function ProductsPage() {
   const [error, setError] = useState("");
   const [pageMessage, setPageMessage] = useState("");
   const [travelMonths, setTravelMonths] = useState<number[]>([]);
+  const [gallery, setGallery] = useState<ProductGalleryDraft[]>([]);
 
   const {
     items: products,
@@ -60,18 +76,23 @@ export function ProductsPage() {
     const selectedGroupIds = form
       .getAll("groupIds")
       .map((value) => String(value));
+    const linkedHotelProductIds = form
+      .getAll("linkedHotelProductIds")
+      .map((value) => String(value));
 
     try {
       if (!(coverImageFile instanceof File) || coverImageFile.size === 0) {
         throw new Error("请选择商品首图");
       }
       const coverImage = await uploadProductImage(coverImageFile);
+      const galleryItems = await uploadProductGallery(gallery);
       await execute((service) =>
         service.createServiceProduct({
           name: String(form.get("name")),
           type: productType,
           summary: String(form.get("summary")),
           coverImage,
+          ...(galleryItems.length > 0 ? { gallery: galleryItems } : {}),
           quotaReference: {
             min: minQuota,
             ...(maxQuotaValue ? { max: Number(maxQuotaValue) } : {}),
@@ -98,6 +119,7 @@ export function ProductsPage() {
                   ),
                   serviceScope: String(form.get("serviceScope")),
                 },
+                linkedHotelProductIds,
               }
             : {}),
         }),
@@ -143,6 +165,7 @@ export function ProductsPage() {
           onClick={() => {
             setError("");
             setTravelMonths([]);
+            setGallery([]);
             setModalOpen(true);
           }}
           type="button"
@@ -221,9 +244,10 @@ export function ProductsPage() {
                       : "待确认"}
                   </td>
                   <td>
-                    {product.visibility.scope === "all_groups"
-                      ? "全部集团"
-                      : `${product.visibility.groupIds.length} 个指定集团`}
+                    <VisibilityGroupsText
+                      groups={data.groups}
+                      visibility={product.visibility}
+                    />
                   </td>
                   <td>
                     <StatusBadge
@@ -304,7 +328,7 @@ export function ProductsPage() {
               }
               value={productType}
             >
-              {Object.entries(productTypeLabel).map(([value, label]) => (
+              {Object.entries(creatableProductTypes).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
@@ -312,6 +336,11 @@ export function ProductsPage() {
             </select>
           </label>
           <ProductImageField required />
+          <ProductGalleryField
+            label={productType === "travel" ? "项目介绍图文" : "图文介绍"}
+            onChange={setGallery}
+            value={gallery}
+          />
           <label className="field">
             <span>额度参考下限</span>
             <input min="1" name="quotaMin" required type="number" />
@@ -389,6 +418,21 @@ export function ProductsPage() {
                 <span>服务范围说明</span>
                 <textarea name="serviceScope" required rows={2} />
               </label>
+              <fieldset className="checkbox-group field--wide">
+                <legend>可选酒店</legend>
+                {data.serviceProducts
+                  .filter((product) => product.type === "hotel")
+                  .map((hotel) => (
+                    <label key={hotel.id}>
+                      <input
+                        name="linkedHotelProductIds"
+                        type="checkbox"
+                        value={hotel.id}
+                      />
+                      <span>{hotel.name}</span>
+                    </label>
+                  ))}
+              </fieldset>
             </>
           ) : null}
           {error ? <p className="form-error field--wide">{error}</p> : null}

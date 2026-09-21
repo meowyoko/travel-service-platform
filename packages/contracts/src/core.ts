@@ -2,6 +2,8 @@ import { Type, type Static } from "@sinclair/typebox";
 import type {
   Employee,
   Group,
+  HotelRoomDailyInventory,
+  HotelRoomType,
   OperatorAccount,
   PersonalIntent,
   PersonalOrder,
@@ -106,11 +108,46 @@ const TravelProductDetailsSchema = Type.Object(
   { additionalProperties: false },
 );
 
+const HotelProductDetailsSchema = Type.Object(
+  {
+    city: Type.String({ minLength: 1, maxLength: 100 }),
+    address: Type.String({ minLength: 1, maxLength: 500 }),
+    starRating: Type.Optional(Type.String({ maxLength: 100 })),
+    facilities: OptionalTextSchema,
+    trafficInfo: OptionalTextSchema,
+    checkInPolicy: OptionalTextSchema,
+    paidServices: Type.Optional(
+      Type.Array(
+        Type.Object(
+          {
+            title: Type.String({ minLength: 1, maxLength: 100 }),
+            description: Type.String({ minLength: 1, maxLength: 1_000 }),
+          },
+          { additionalProperties: false },
+        ),
+      ),
+    ),
+  },
+  { additionalProperties: false },
+);
+
+const OrderHotelAccommodationSchema = Type.Object(
+  {
+    hotelProductId: Type.String({ minLength: 1 }),
+    roomTypeId: Type.Optional(Type.String({ minLength: 1 })),
+    checkInDate: DateSchema,
+    checkOutDate: DateSchema,
+    note: OptionalTextSchema,
+  },
+  { additionalProperties: false },
+);
+
 export const CreateServiceProductRequestSchema = Type.Object(
   {
     name: Type.String({ minLength: 1, maxLength: 200 }),
     type: Type.Union([
       Type.Literal("travel"),
+      Type.Literal("hotel"),
       Type.Literal("insurance"),
       Type.Literal("medical"),
       Type.Literal("health_management"),
@@ -119,7 +156,15 @@ export const CreateServiceProductRequestSchema = Type.Object(
     summary: Type.String({ minLength: 1, maxLength: 5_000 }),
     coverImage: Type.String({ minLength: 1, maxLength: 2_000 }),
     gallery: Type.Optional(
-      Type.Array(Type.String({ minLength: 1, maxLength: 2_000 })),
+      Type.Array(
+        Type.Object(
+          {
+            imageUrl: Type.String({ minLength: 1, maxLength: 2_000 }),
+            description: Type.String({ minLength: 1, maxLength: 100 }),
+          },
+          { additionalProperties: false },
+        ),
+      ),
     ),
     quotaReference: Type.Optional(
       Type.Object(
@@ -136,6 +181,10 @@ export const CreateServiceProductRequestSchema = Type.Object(
     sortOrder: Type.Optional(Type.Integer()),
     recommended: Type.Optional(Type.Boolean()),
     travelDetails: Type.Optional(TravelProductDetailsSchema),
+    hotelDetails: Type.Optional(HotelProductDetailsSchema),
+    linkedHotelProductIds: Type.Optional(
+      Type.Array(Type.String({ minLength: 1 }), { uniqueItems: true }),
+    ),
   },
   { additionalProperties: false },
 );
@@ -155,6 +204,8 @@ export const SubmitPersonalIntentRequestSchema = Type.Object(
     accommodationPreference: Type.Optional(
       Type.String({ maxLength: 1_000 }),
     ),
+    preferredHotelProductId: Type.Optional(Type.String({ minLength: 1 })),
+    preferredHotelRoomTypeId: Type.Optional(Type.String({ minLength: 1 })),
     additionalNotes: OptionalTextSchema,
     convenientContactTime: Type.Optional(Type.String({ maxLength: 500 })),
   },
@@ -190,6 +241,7 @@ export const ConvertIntentToOrderRequestSchema = Type.Object(
     returnDate: DateSchema,
     transport: Type.Optional(Type.String({ maxLength: 500 })),
     accommodation: Type.Optional(Type.String({ maxLength: 2_000 })),
+    hotelAccommodation: Type.Optional(OrderHotelAccommodationSchema),
     pickupService: Type.Optional(Type.String({ maxLength: 1_000 })),
     internalNote: OptionalTextSchema,
   },
@@ -205,6 +257,8 @@ export type AdminEmployeeDto = Omit<Employee, "password">;
 export type GroupDto = Group;
 export type QuotaAccountDto = QuotaAccount;
 export type ServiceProductDto = ServiceProduct;
+export type HotelRoomTypeDto = HotelRoomType;
+export type HotelRoomDailyInventoryDto = HotelRoomDailyInventory;
 export type PersonalIntentDto = PersonalIntent;
 export type PersonalOrderDto = PersonalOrder;
 export type QuotaTransactionDto = QuotaTransaction;

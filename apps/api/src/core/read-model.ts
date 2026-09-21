@@ -1,6 +1,9 @@
+import { normalizeProductGallery } from "@travel/domain";
 import type {
   AdminEmployeeDto,
   GroupDto,
+  HotelRoomDailyInventoryDto,
+  HotelRoomTypeDto,
   PersonalIntentDto,
   PersonalOrderDto,
   PublicOperatorAccount,
@@ -15,10 +18,13 @@ import type { Database } from "../db/client.js";
 import {
   employees,
   groups,
+  hotelRoomDailyInventories,
+  hotelRoomTypes,
   operatorAccounts,
   operatorPagePermissions,
   personalIntents,
   personalOrders,
+  productLinkedHotels,
   productVisibleGroups,
   quotaAccounts,
   quotaTransactions,
@@ -182,14 +188,28 @@ export async function listServiceProducts(
           .where(inArray(productVisibleGroups.productId, ids))
       : db.select().from(productVisibleGroups),
   ]);
+  const linkedHotelRows = ids?.length
+    ? await db
+        .select()
+        .from(productLinkedHotels)
+        .where(inArray(productLinkedHotels.productId, ids))
+    : await db.select().from(productLinkedHotels);
   const groupIdsByProduct = new Map<string, string[]>();
   for (const row of visibilityRows) {
     const groupIds = groupIdsByProduct.get(row.productId) ?? [];
     groupIds.push(row.groupId);
     groupIdsByProduct.set(row.productId, groupIds);
   }
+  const hotelIdsByProduct = new Map<string, string[]>();
+  for (const row of linkedHotelRows) {
+    const hotelIds = hotelIdsByProduct.get(row.productId) ?? [];
+    hotelIds.push(row.hotelProductId);
+    hotelIdsByProduct.set(row.productId, hotelIds);
+  }
 
-  return products.map((product) => ({
+  return products.map((product) => {
+    const gallery = normalizeProductGallery(product.gallery);
+    return ({
     id: product.id,
     name: product.name,
     type: product.type,
@@ -207,7 +227,7 @@ export async function listServiceProducts(
     status: product.status,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
-    ...(product.gallery ? { gallery: product.gallery } : {}),
+    ...(gallery ? { gallery } : {}),
     ...(product.quotaReference
       ? { quotaReference: product.quotaReference }
       : {}),
@@ -218,6 +238,63 @@ export async function listServiceProducts(
     ...(product.travelDetails
       ? { travelDetails: product.travelDetails }
       : {}),
+    ...(product.hotelDetails
+      ? { hotelDetails: product.hotelDetails }
+      : {}),
+    ...(hotelIdsByProduct.has(product.id)
+      ? { linkedHotelProductIds: hotelIdsByProduct.get(product.id) ?? [] }
+      : {}),
+    });
+  });
+}
+
+export async function listHotelRoomTypes(
+  db: Database,
+  hotelProductId?: string,
+  ids?: string[],
+): Promise<HotelRoomTypeDto[]> {
+  if (ids?.length === 0) return [];
+  const condition = and(
+    hotelProductId ? eq(hotelRoomTypes.hotelProductId, hotelProductId) : undefined,
+    ids?.length ? inArray(hotelRoomTypes.id, ids) : undefined,
+  );
+  const query = db.select().from(hotelRoomTypes);
+  const rows = condition ? await query.where(condition) : await query;
+  return rows.map((roomType) => ({
+    id: roomType.id,
+    hotelProductId: roomType.hotelProductId,
+    name: roomType.name,
+    capacity: roomType.capacity,
+    status: roomType.status,
+    createdAt: roomType.createdAt.toISOString(),
+    updatedAt: roomType.updatedAt.toISOString(),
+    ...(roomType.imageUrl ? { imageUrl: roomType.imageUrl } : {}),
+    ...(roomType.bedType ? { bedType: roomType.bedType } : {}),
+    ...(roomType.breakfast ? { breakfast: roomType.breakfast } : {}),
+    ...(roomType.area ? { area: roomType.area } : {}),
+    ...(roomType.description ? { description: roomType.description } : {}),
+  }));
+}
+
+export async function listHotelRoomDailyInventories(
+  db: Database,
+  roomTypeId?: string,
+): Promise<HotelRoomDailyInventoryDto[]> {
+  const rows = roomTypeId
+    ? await db
+        .select()
+        .from(hotelRoomDailyInventories)
+        .where(eq(hotelRoomDailyInventories.roomTypeId, roomTypeId))
+    : await db.select().from(hotelRoomDailyInventories);
+  return rows.map((inventory) => ({
+    id: inventory.id,
+    roomTypeId: inventory.roomTypeId,
+    date: inventory.date,
+    quotaPrice: inventory.quotaPrice,
+    totalInventory: inventory.totalInventory,
+    usedInventory: inventory.usedInventory,
+    isAvailable: inventory.isAvailable,
+    updatedAt: inventory.updatedAt.toISOString(),
   }));
 }
 
@@ -256,6 +333,12 @@ export async function listPersonalIntents(
       : {}),
     ...(intent.accommodationPreference
       ? { accommodationPreference: intent.accommodationPreference }
+      : {}),
+    ...(intent.preferredHotelProductId
+      ? { preferredHotelProductId: intent.preferredHotelProductId }
+      : {}),
+    ...(intent.preferredHotelRoomTypeId
+      ? { preferredHotelRoomTypeId: intent.preferredHotelRoomTypeId }
       : {}),
     ...(intent.additionalNotes
       ? { additionalNotes: intent.additionalNotes }
@@ -305,6 +388,9 @@ export async function listPersonalOrders(
     ...(order.returnDate ? { returnDate: order.returnDate } : {}),
     ...(order.transport ? { transport: order.transport } : {}),
     ...(order.accommodation ? { accommodation: order.accommodation } : {}),
+    ...(order.hotelAccommodation
+      ? { hotelAccommodation: order.hotelAccommodation }
+      : {}),
     ...(order.pickupService ? { pickupService: order.pickupService } : {}),
     ...(order.assigneeAccountId
       ? { assigneeAccountId: order.assigneeAccountId }

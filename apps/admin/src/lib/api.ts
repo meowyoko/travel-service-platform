@@ -7,6 +7,7 @@ import type {
   CreateEmployeeInput,
   CreateEmployeesBatchInput,
   CreateGroupInput,
+  CreateHotelRoomTypeInput,
   CreateOperatorAccountInput,
   CreateServiceProductInput,
   GrantQuotaBatchInput,
@@ -15,16 +16,20 @@ import type {
   RefundPersonalOrderQuotaInput,
   UpdateEmployeeInput,
   UpdateGroupInput,
+  UpdateHotelRoomTypeInput,
   UpdateIntentFollowUpInput,
   UpdateOperatorAccountInput,
   UpdatePendingOrderInput,
   UpdatePersonalOrderStatusInput,
   UpdatePersonalOrderTravelDatesInput,
   UpdateServiceProductInput,
+  UpsertHotelRoomInventoryInput,
 } from "@travel/application";
 import type {
   AdminEmployeeDto,
   AdminOperatorAccountDto,
+  HotelRoomDailyInventoryDto,
+  HotelRoomTypeDto,
   PersonalIntentDto,
   PersonalOrderDto,
   PublicOperatorAccount,
@@ -41,6 +46,8 @@ export interface AdminPlatformData {
   employees: AdminEmployeeDto[];
   quotaAccounts: QuotaAccount[];
   serviceProducts: ServiceProductDto[];
+  hotelRoomTypes: HotelRoomTypeDto[];
+  hotelRoomDailyInventories: HotelRoomDailyInventoryDto[];
   personalIntents: PersonalIntentDto[];
   personalOrders: PersonalOrderDto[];
   serviceReviews: ServiceReviewDto[];
@@ -273,6 +280,30 @@ export class RemotePlatformService {
     return apiRequest("/api/admin/products", {
       method: "POST",
       body: jsonBody(input),
+    });
+  }
+
+  createHotelRoomType(input: CreateHotelRoomTypeInput) {
+    const { hotelProductId, ...body } = input;
+    return apiRequest(`/api/admin/products/${hotelProductId}/room-types`, {
+      method: "POST",
+      body: jsonBody(body),
+    });
+  }
+
+  updateHotelRoomType(input: UpdateHotelRoomTypeInput) {
+    const { roomTypeId, hotelProductId: _hotelProductId, ...body } = input;
+    return apiRequest(`/api/admin/room-types/${roomTypeId}`, {
+      method: "PATCH",
+      body: jsonBody(body),
+    });
+  }
+
+  upsertHotelRoomInventory(input: UpsertHotelRoomInventoryInput) {
+    const { roomTypeId, ...body } = input;
+    return apiRequest(`/api/admin/room-types/${roomTypeId}/inventory`, {
+      method: "PUT",
+      body: jsonBody(body),
     });
   }
 

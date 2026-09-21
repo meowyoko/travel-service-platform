@@ -16,6 +16,7 @@ const permissionLabels: Record<AdminPagePermission, string> = {
   employees: "员工管理",
   quotas: "额度管理",
   products: "服务商品",
+  hotels: "酒店管理",
   intents: "个人意向",
   orders: "个人订单",
   reviews: "评价管理",

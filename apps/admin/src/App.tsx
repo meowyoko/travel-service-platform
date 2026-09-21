@@ -4,6 +4,8 @@ import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { AdminShell } from "./components/AdminShell";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { GroupsPage } from "./pages/GroupsPage";
+import { HotelsPage } from "./pages/HotelsPage";
+import { HotelDetailPage } from "./pages/HotelDetailPage";
 import { IntentsPage } from "./pages/IntentsPage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { OrderDetailPage } from "./pages/OrderDetailPage";
@@ -23,6 +25,7 @@ const defaultRoutes: Array<{
   { permission: "employees", to: "/employees" },
   { permission: "quotas", to: "/quotas" },
   { permission: "products", to: "/products" },
+  { permission: "hotels", to: "/hotels" },
   { permission: "intents", to: "/intents" },
   { permission: "orders", to: "/orders" },
   { permission: "reviews", to: "/reviews" },
@@ -77,6 +80,10 @@ export function App() {
           <Route element={<PermissionRoute permission="products" />}>
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/:productId" element={<ProductDetailPage />} />
+          </Route>
+          <Route element={<PermissionRoute permission="hotels" />}>
+            <Route path="/hotels" element={<HotelsPage />} />
+            <Route path="/hotels/:hotelId" element={<HotelDetailPage />} />
           </Route>
           <Route element={<PermissionRoute permission="intents" />}>
             <Route path="/intents" element={<IntentsPage />} />

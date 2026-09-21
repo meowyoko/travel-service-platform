@@ -3,15 +3,18 @@ import {
   AssignOrderRequestSchema,
   CloseIntentRequestSchema,
   CreateEmployeesBatchRequestSchema,
+  CreateHotelRoomTypeRequestSchema,
   CreateOperatorAccountRequestSchema,
   ModerateReviewRequestSchema,
   RefundOrderQuotaRequestSchema,
   UpdateEmployeeRequestSchema,
   UpdateGroupRequestSchema,
+  UpdateHotelRoomTypeRequestSchema,
   UpdateOperatorAccountRequestSchema,
   UpdateOrderTravelDatesRequestSchema,
   UpdatePendingOrderRequestSchema,
   UpdateServiceProductRequestSchema,
+  UpsertHotelRoomInventoryRequestSchema,
 } from "@travel/contracts";
 import {
   Type,
@@ -26,6 +29,7 @@ import {
   cancelOrder,
   closeIntent,
   createEmployeesBatch,
+  createHotelRoomType,
   createOperatorAccount,
   deleteEmployee,
   deleteGroup,
@@ -36,15 +40,19 @@ import {
   unpublishServiceProduct,
   updateEmployee,
   updateGroup,
+  updateHotelRoomType,
   updateOperatorAccount,
   updateOrderTravelDates,
   updatePendingOrder,
   updateServiceProduct,
+  upsertHotelRoomInventory,
 } from "./extended-service.js";
 import {
   listAdminOperatorAccounts,
   listEmployees,
   listGroups,
+  listHotelRoomDailyInventories,
+  listHotelRoomTypes,
   listPersonalIntents,
   listPersonalOrders,
   listQuotaTransactions,
@@ -58,6 +66,9 @@ const EmployeeParams = Type.Object({
 });
 const ProductParams = Type.Object({
   productId: Type.String({ minLength: 1 }),
+});
+const RoomTypeParams = Type.Object({
+  roomTypeId: Type.String({ minLength: 1 }),
 });
 const IntentParams = Type.Object({ intentId: Type.String({ minLength: 1 }) });
 const OrderParams = Type.Object({ orderId: Type.String({ minLength: 1 }) });
@@ -230,6 +241,72 @@ export function createAdminExtendedRoutes(
         await requireAdmin(db, request, "products");
         await deleteServiceProduct(db, request.params.productId);
         return reply.code(204).send();
+      },
+    );
+
+    app.post(
+      "/products/:productId/room-types",
+      {
+        schema: {
+          params: ProductParams,
+          body: CreateHotelRoomTypeRequestSchema,
+        },
+      },
+      async (request, reply) => {
+        await requireAdmin(db, request, "products");
+        const id = await createHotelRoomType(
+          db,
+          request.params.productId,
+          request.body,
+        );
+        const roomType = (await listHotelRoomTypes(db, undefined, [id]))[0];
+        return reply.code(201).send({ roomType });
+      },
+    );
+
+    app.patch(
+      "/room-types/:roomTypeId",
+      {
+        schema: {
+          params: RoomTypeParams,
+          body: UpdateHotelRoomTypeRequestSchema,
+        },
+      },
+      async (request) => {
+        await requireAdmin(db, request, "products");
+        await updateHotelRoomType(
+          db,
+          request.params.roomTypeId,
+          request.body,
+        );
+        return {
+          roomType: (await listHotelRoomTypes(db, undefined, [
+            request.params.roomTypeId,
+          ]))[0],
+        };
+      },
+    );
+
+    app.put(
+      "/room-types/:roomTypeId/inventory",
+      {
+        schema: {
+          params: RoomTypeParams,
+          body: UpsertHotelRoomInventoryRequestSchema,
+        },
+      },
+      async (request) => {
+        await requireAdmin(db, request, "products");
+        const id = await upsertHotelRoomInventory(
+          db,
+          request.params.roomTypeId,
+          request.body,
+        );
+        return {
+          inventory: (await listHotelRoomDailyInventories(db)).find(
+            (item) => item.id === id,
+          ),
+        };
       },
     );
 

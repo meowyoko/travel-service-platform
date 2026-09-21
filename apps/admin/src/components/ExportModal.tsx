@@ -159,6 +159,7 @@ export function ExportModal({
               <select name="type">
                 <option value="">全部类型</option>
                 <option value="travel">疗养旅游</option>
+                <option value="hotel">酒店</option>
                 <option value="insurance">保险服务</option>
                 <option value="medical">医疗服务</option>
                 <option value="health_management">健康管理</option>

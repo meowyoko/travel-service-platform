@@ -378,6 +378,38 @@ button {
   color: #879194;
 }
 
+.product-type-tabs {
+  border-bottom: 1px solid #dce2e3;
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 18px -2px 0;
+}
+
+.product-type-tabs button {
+  background: transparent;
+  border: 0;
+  color: #667174;
+  font-size: 13px;
+  padding: 12px 8px;
+  position: relative;
+}
+
+.product-type-tabs button.active {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.product-type-tabs button.active::after {
+  background: var(--primary);
+  bottom: -1px;
+  content: "";
+  height: 2px;
+  left: 28%;
+  position: absolute;
+  width: 44%;
+}
+
 .home-notice {
   background: #e4f2f4;
   border-radius: 6px;
@@ -416,6 +448,114 @@ button {
 .product-list {
   display: grid;
   gap: 26px;
+}
+
+.hotel-list {
+  display: grid;
+  gap: 22px;
+}
+
+.hotel-product-card {
+  background: white;
+  border: 1px solid #e4e8e8;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.hotel-product-image {
+  aspect-ratio: 16 / 10;
+  background: linear-gradient(145deg, #dcebec, #edf0ea);
+  overflow: hidden;
+  position: relative;
+}
+
+.hotel-product-image img {
+  height: 100%;
+  object-fit: cover;
+  position: relative;
+  width: 100%;
+  z-index: 1;
+}
+
+.hotel-product-image > span {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  color: var(--primary);
+  font-size: 11px;
+  left: 12px;
+  padding: 5px 10px;
+  position: absolute;
+  top: 12px;
+  z-index: 2;
+}
+
+.hotel-product-body {
+  padding: 16px;
+}
+
+.hotel-product-body h2 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.45;
+  margin: 0 0 8px;
+}
+
+.hotel-product-location {
+  align-items: center;
+  color: #5d6a6d;
+  display: flex;
+  font-size: 12px;
+  gap: 5px;
+}
+
+.hotel-product-location svg {
+  color: var(--primary);
+}
+
+.hotel-product-body p {
+  color: #4f5a5d;
+  display: -webkit-box;
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 12px 0 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.hotel-product-meta {
+  align-items: center;
+  border-top: 1px solid #ecefef;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+  padding-top: 13px;
+}
+
+.hotel-product-meta span {
+  align-items: center;
+  color: #707b7e;
+  display: flex;
+  font-size: 12px;
+  gap: 5px;
+}
+
+.hotel-product-meta strong {
+  color: var(--primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.hotel-product-action {
+  background: white;
+  border: 1px solid var(--primary);
+  border-radius: 5px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 14px;
+  min-height: 42px;
+  width: 100%;
 }
 
 .product-card {
@@ -755,6 +895,193 @@ button {
   color: var(--text-muted);
   font-size: 12px;
   line-height: 1.55;
+}
+
+.hotel-feature-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.hotel-feature-row::-webkit-scrollbar {
+  display: none;
+}
+
+.hotel-feature-row span {
+  background: #eef6f7;
+  border-radius: 999px;
+  color: var(--primary);
+  flex: 0 0 auto;
+  font-size: 12px;
+  padding: 7px 12px;
+}
+
+.paid-service-section {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.paid-service-section h3 {
+  border-left: 4px solid var(--primary);
+  color: var(--text-main);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0;
+  padding-left: 12px;
+}
+
+.paid-service-list {
+  display: grid;
+  gap: 10px;
+}
+
+.paid-service-list article {
+  align-items: flex-start;
+  background: #fff8ed;
+  border: 1px solid #f0dac0;
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+}
+
+.paid-service-list b {
+  align-items: center;
+  border: 2px solid #a5641b;
+  border-radius: 999px;
+  color: #a5641b;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 700;
+  height: 22px;
+  justify-content: center;
+  margin-top: 1px;
+  width: 22px;
+}
+
+.paid-service-list span {
+  display: grid;
+  gap: 4px;
+}
+
+.paid-service-list strong {
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.paid-service-list small,
+.paid-service-list p {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.hotel-room-card-list {
+  display: grid;
+  gap: 16px;
+}
+
+.hotel-room-card {
+  background: white;
+  border: 1px solid #dfe4e5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.hotel-room-image {
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(145deg, #dcebec, #edf0ea);
+  overflow: hidden;
+}
+
+.hotel-room-image img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.hotel-room-card-body {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  padding: 15px;
+}
+
+.hotel-room-card-body h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.hotel-room-card-body p {
+  color: #5d696c;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.hotel-room-card-body > strong {
+  color: var(--primary);
+  display: grid;
+  flex: 0 0 auto;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.hotel-room-card-body > strong span {
+  color: #5d696c;
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.product-gallery-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.product-gallery-card {
+  overflow: hidden;
+  border: 1px solid #dfe4e5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.product-gallery-card__image {
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: linear-gradient(145deg, #dcebec, #edf0ea);
+}
+
+.product-gallery-card__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-gallery-card p {
+  display: -webkit-box;
+  min-height: 2.9em;
+  overflow: hidden;
+  padding: 10px 12px;
+  color: #4c585b;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .detail-copy h3 {

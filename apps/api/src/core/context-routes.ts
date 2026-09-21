@@ -6,6 +6,8 @@ import {
   listAdminOperatorAccounts,
   listEmployees,
   listGroups,
+  listHotelRoomDailyInventories,
+  listHotelRoomTypes,
   listPersonalIntents,
   listPersonalOrders,
   listQuotaAccounts,
@@ -29,6 +31,8 @@ export function createContextRoutes(
         allEmployees,
         allQuotaAccounts,
         allProducts,
+        allHotelRoomTypes,
+        allHotelRoomInventories,
         allIntents,
         allOrders,
         allReviews,
@@ -39,6 +43,8 @@ export function createContextRoutes(
         listEmployees(db),
         listQuotaAccounts(db),
         listServiceProducts(db),
+        listHotelRoomTypes(db),
+        listHotelRoomDailyInventories(db),
         listPersonalIntents(db),
         listPersonalOrders(db),
         listServiceReviews(db),
@@ -50,6 +56,7 @@ export function createContextRoutes(
         can("employees") ||
         can("quotas") ||
         can("products") ||
+        can("hotels") ||
         can("intents") ||
         can("orders") ||
         can("reviews");
@@ -62,6 +69,7 @@ export function createContextRoutes(
         can("reviews");
       const needsProducts =
         can("products") ||
+        can("hotels") ||
         can("intents") ||
         can("orders") ||
         can("reviews");
@@ -83,6 +91,10 @@ export function createContextRoutes(
           quotaAccounts:
             can("quotas") || can("orders") ? allQuotaAccounts : [],
           serviceProducts: needsProducts ? allProducts : [],
+          hotelRoomTypes: needsProducts ? allHotelRoomTypes : [],
+          hotelRoomDailyInventories: needsProducts
+            ? allHotelRoomInventories
+            : [],
           personalIntents:
             can("intents") || can("products") ? allIntents : [],
           personalOrders: needsOrders ? allOrders : [],
@@ -99,6 +111,8 @@ export function createContextRoutes(
       const [
         groups,
         products,
+        roomTypes,
+        inventories,
         intents,
         orders,
         quotaAccounts,
@@ -108,6 +122,8 @@ export function createContextRoutes(
       ] = await Promise.all([
         listGroups(db),
         listServiceProducts(db),
+        listHotelRoomTypes(db),
+        listHotelRoomDailyInventories(db),
         listPersonalIntents(db, employee.id),
         listPersonalOrders(db, employee.id),
         listQuotaAccounts(db, employee.id),
@@ -125,6 +141,12 @@ export function createContextRoutes(
       const visibleProductIds = new Set(
         visibleProducts.map(({ id }) => id),
       );
+      const visibleRoomTypes = roomTypes.filter(({ hotelProductId }) =>
+        visibleProductIds.has(hotelProductId),
+      );
+      const visibleRoomTypeIds = new Set(
+        visibleRoomTypes.map(({ id }) => id),
+      );
 
       return {
         employee,
@@ -133,6 +155,10 @@ export function createContextRoutes(
           : null,
         quotaAccount: quotaAccounts[0] ?? null,
         visibleProducts,
+        hotelRoomTypes: visibleRoomTypes,
+        hotelRoomDailyInventories: inventories.filter(({ roomTypeId }) =>
+          visibleRoomTypeIds.has(roomTypeId),
+        ),
         personalIntents: intents,
         personalOrders: orders,
         personalReviews,

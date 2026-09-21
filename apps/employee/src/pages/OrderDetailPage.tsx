@@ -141,7 +141,15 @@ export function OrderDetailPage() {
             <BedDouble size={18} />
             <span>
               <small>住宿安排</small>
-              <strong>{order.accommodation || "待确认"}</strong>
+              <strong>
+                {order.hotelAccommodation
+                  ? `${order.hotelAccommodation.hotelName}${
+                      order.hotelAccommodation.roomTypeName
+                        ? ` / ${order.hotelAccommodation.roomTypeName}`
+                        : ""
+                    }`
+                  : order.accommodation || "待确认"}
+              </strong>
             </span>
           </div>
           <div>
@@ -152,6 +160,16 @@ export function OrderDetailPage() {
             </span>
           </div>
         </div>
+        {order.hotelAccommodation ? (
+          <p className="order-service-plan">
+            入住：{formatDate(order.hotelAccommodation.checkInDate)} 至{" "}
+            {formatDate(order.hotelAccommodation.checkOutDate)}
+            ，共 {order.hotelAccommodation.nights} 晚
+            {order.hotelAccommodation.totalQuota
+              ? `，住宿额度 ${formatQuota(order.hotelAccommodation.totalQuota)}`
+              : ""}
+          </p>
+        ) : null}
       </section>
 
       <section className="order-detail-section">

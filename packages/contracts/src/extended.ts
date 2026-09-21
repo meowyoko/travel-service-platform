@@ -75,6 +75,39 @@ export const RefundOrderQuotaRequestSchema = Type.Object(
   { additionalProperties: false },
 );
 
+export const CreateHotelRoomTypeRequestSchema = Type.Object(
+  {
+    name: Type.String({ minLength: 1, maxLength: 200 }),
+    imageUrl: Type.Optional(Type.String({ maxLength: 2_000 })),
+    bedType: Type.Optional(Type.String({ maxLength: 100 })),
+    capacity: Type.Integer({ minimum: 1, maximum: 20 }),
+    breakfast: Type.Optional(Type.String({ maxLength: 200 })),
+    area: Type.Optional(Type.String({ maxLength: 100 })),
+    description: OptionalTextSchema,
+  },
+  { additionalProperties: false },
+);
+
+export const UpdateHotelRoomTypeRequestSchema = Type.Composite(
+  [
+    CreateHotelRoomTypeRequestSchema,
+    Type.Object({
+      status: Type.Union([Type.Literal("draft"), Type.Literal("published")]),
+    }),
+  ],
+  { additionalProperties: false },
+);
+
+export const UpsertHotelRoomInventoryRequestSchema = Type.Object(
+  {
+    date: DateSchema,
+    quotaPrice: Type.Integer({ minimum: 0 }),
+    totalInventory: Type.Integer({ minimum: 0 }),
+    isAvailable: Type.Boolean(),
+  },
+  { additionalProperties: false },
+);
+
 export const UpdateServiceProductRequestSchema = Type.Composite(
   [
     CreateServiceProductRequestSchema,
@@ -101,6 +134,21 @@ export const UpdatePendingOrderRequestSchema = Type.Object(
     returnDate: Type.Optional(DateSchema),
     transport: Type.Optional(Type.String({ maxLength: 500 })),
     accommodation: Type.Optional(Type.String({ maxLength: 2_000 })),
+    hotelAccommodation: Type.Optional(
+      Type.Union([
+        Type.Object(
+          {
+            hotelProductId: Type.String({ minLength: 1 }),
+            roomTypeId: Type.Optional(Type.String({ minLength: 1 })),
+            checkInDate: DateSchema,
+            checkOutDate: DateSchema,
+            note: Type.Optional(Type.String({ maxLength: 10_000 })),
+          },
+          { additionalProperties: false },
+        ),
+        Type.Null(),
+      ]),
+    ),
     pickupService: Type.Optional(Type.String({ maxLength: 1_000 })),
     internalNote: OptionalTextSchema,
   },
@@ -143,6 +191,7 @@ const AdminPermissionSchema = Type.Union([
   Type.Literal("employees"),
   Type.Literal("quotas"),
   Type.Literal("products"),
+  Type.Literal("hotels"),
   Type.Literal("intents"),
   Type.Literal("orders"),
   Type.Literal("reviews"),
@@ -183,6 +232,15 @@ export type UpdateEmployeeRequest = Static<
 export type AdjustQuotaRequest = Static<typeof AdjustQuotaRequestSchema>;
 export type RefundOrderQuotaRequest = Static<
   typeof RefundOrderQuotaRequestSchema
+>;
+export type CreateHotelRoomTypeRequest = Static<
+  typeof CreateHotelRoomTypeRequestSchema
+>;
+export type UpdateHotelRoomTypeRequest = Static<
+  typeof UpdateHotelRoomTypeRequestSchema
+>;
+export type UpsertHotelRoomInventoryRequest = Static<
+  typeof UpsertHotelRoomInventoryRequestSchema
 >;
 export type UpdateServiceProductRequest = Static<
   typeof UpdateServiceProductRequestSchema

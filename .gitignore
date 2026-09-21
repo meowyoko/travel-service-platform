@@ -3,6 +3,7 @@ dist/
 .vite/
 coverage/
 data/uploads/
+apps/api/data/
 *.local
 *.tsbuildinfo
 *.log

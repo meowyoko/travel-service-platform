@@ -9,6 +9,7 @@ export {
   type AssignPersonalOrderInput,
   type ConfirmPersonalOrderInput,
   type ConvertIntentToOrderInput,
+  type CreateHotelRoomTypeInput,
   type ClosePersonalIntentInput,
   type CreateOperatorAccountInput,
   type CreateEmployeeInput,
@@ -25,6 +26,7 @@ export {
   type ServiceProductUsage,
   type UpdateEmployeeInput,
   type UpdateGroupInput,
+  type UpdateHotelRoomTypeInput,
   type UpdateIntentFollowUpInput,
   type WithdrawPersonalIntentInput,
   type UpdatePendingOrderInput,
@@ -32,4 +34,5 @@ export {
   type UpdatePersonalOrderTravelDatesInput,
   type UpdatePersonalOrderStatusInput,
   type UpdateServiceProductInput,
+  type UpsertHotelRoomInventoryInput,
 } from "./platform-service.js";

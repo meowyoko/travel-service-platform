@@ -129,6 +129,7 @@ export async function pageProducts(db: Database, options: PageOptions) {
           serviceProducts.type,
           options.type as
             | "travel"
+            | "hotel"
             | "insurance"
             | "medical"
             | "health_management"

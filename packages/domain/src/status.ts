@@ -16,6 +16,7 @@ export const ADMIN_PAGE_PERMISSIONS = [
   "employees",
   "quotas",
   "products",
+  "hotels",
   "intents",
   "orders",
   "reviews",
@@ -26,6 +27,7 @@ export type AdminPagePermission =
 
 export const PRODUCT_TYPES = [
   "travel",
+  "hotel",
   "insurance",
   "medical",
   "health_management",

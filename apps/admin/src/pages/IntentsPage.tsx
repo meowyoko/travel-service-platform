@@ -115,6 +115,7 @@ export function IntentsPage() {
     const form = new FormData(event.currentTarget);
     const departureDate = String(form.get("departureDate") ?? "").trim();
     const returnDate = String(form.get("returnDate") ?? "").trim();
+    const intent = data.personalIntents.find(({ id }) => id === convertingId);
 
     try {
       await execute((service) =>
@@ -127,6 +128,18 @@ export function IntentsPage() {
           servicePlan: String(form.get("servicePlan")),
           departureDate,
           returnDate,
+          ...(intent?.preferredHotelProductId
+            ? {
+                hotelAccommodation: {
+                  hotelProductId: intent.preferredHotelProductId,
+                  ...(intent.preferredHotelRoomTypeId
+                    ? { roomTypeId: intent.preferredHotelRoomTypeId }
+                    : {}),
+                  checkInDate: departureDate,
+                  checkOutDate: returnDate,
+                },
+              }
+            : {}),
         }),
       );
       setConvertingId(null);

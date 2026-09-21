@@ -3,12 +3,14 @@ import { useEffect, useState } from "react";
 
 interface ProductImageFieldProps {
   currentImage?: string;
+  label?: string;
   name?: string;
   required?: boolean;
 }
 
 export function ProductImageField({
   currentImage,
+  label = "商品首图",
   name = "coverImageFile",
   required = false,
 }: ProductImageFieldProps) {
@@ -36,7 +38,7 @@ export function ProductImageField({
 
   return (
     <label className="product-image-field field field--wide">
-      <span>商品首图</span>
+      <span>{label}</span>
       <span className="product-image-field__picker">
         {previewUrl ? (
           <img alt="商品首图预览" src={previewUrl} />

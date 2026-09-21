@@ -15,6 +15,7 @@ export const AdminPagePermissionSchema = Type.Union([
   Type.Literal("employees"),
   Type.Literal("quotas"),
   Type.Literal("products"),
+  Type.Literal("hotels"),
   Type.Literal("intents"),
   Type.Literal("orders"),
   Type.Literal("reviews"),

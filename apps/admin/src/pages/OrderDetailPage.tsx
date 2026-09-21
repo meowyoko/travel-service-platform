@@ -56,6 +56,8 @@ export function OrderDetailPage() {
   const [assigneeDraft, setAssigneeDraft] = useState("");
   const [editingOrderContent, setEditingOrderContent] = useState(false);
   const [orderEditError, setOrderEditError] = useState("");
+  const [editHotelProductId, setEditHotelProductId] = useState("");
+  const [editRoomTypeId, setEditRoomTypeId] = useState("");
 
   useEffect(() => {
     void syncOrderStatuses();
@@ -93,6 +95,22 @@ export function OrderDetailPage() {
   const status = orderStatusMeta[order.status];
   const statusActions = getStatusActions(order.status);
   const travel = order.productSnapshot.travelDetails;
+  const currentSourceProduct = data.serviceProducts.find(
+    ({ id }) => id === order.sourceProductId,
+  );
+  const currentLinkedHotelIds =
+    order.productSnapshot.type === "travel"
+      ? currentSourceProduct?.linkedHotelProductIds ?? []
+      : order.productSnapshot.type === "hotel"
+        ? [order.sourceProductId]
+        : [];
+  const selectableHotels = data.serviceProducts.filter(
+    (product) =>
+      product.type === "hotel" && currentLinkedHotelIds.includes(product.id),
+  );
+  const selectableRoomTypes = data.hotelRoomTypes.filter(
+    (room) => room.hotelProductId === editHotelProductId,
+  );
   const outstandingQuota = order.deductedQuota - order.refundedQuota;
   const assignee = data.operatorAccounts.find(
     ({ id }) => id === order.assigneeAccountId,
@@ -143,6 +161,10 @@ export function OrderDetailPage() {
     event.preventDefault();
     setOrderEditError("");
     const form = new FormData(event.currentTarget);
+    const hotelProductId = editHotelProductId;
+    const roomTypeId = editRoomTypeId;
+    const checkInDate = String(form.get("checkInDate") ?? "");
+    const checkOutDate = String(form.get("checkOutDate") ?? "");
 
     try {
       await execute((service) =>
@@ -155,6 +177,16 @@ export function OrderDetailPage() {
           returnDate: String(form.get("returnDate") ?? ""),
           transport: String(form.get("transport") ?? ""),
           accommodation: String(form.get("accommodation") ?? ""),
+          hotelAccommodation:
+            hotelProductId && checkInDate && checkOutDate
+              ? {
+                  hotelProductId,
+                  ...(roomTypeId ? { roomTypeId } : {}),
+                  checkInDate,
+                  checkOutDate,
+                  note: String(form.get("hotelNote") ?? ""),
+                }
+              : null,
           pickupService: String(form.get("pickupService") ?? ""),
           servicePlan: String(form.get("servicePlan") ?? ""),
           internalNote: String(form.get("internalNote") ?? ""),
@@ -192,6 +224,10 @@ export function OrderDetailPage() {
               className="button button--secondary"
               onClick={() => {
                 setOrderEditError("");
+                setEditHotelProductId(
+                  order.hotelAccommodation?.hotelProductId ?? "",
+                );
+                setEditRoomTypeId(order.hotelAccommodation?.roomTypeId ?? "");
                 setEditingOrderContent(true);
               }}
               type="button"
@@ -357,6 +393,19 @@ export function OrderDetailPage() {
             <span>住宿安排</span>
             <p>{order.accommodation || "待确认"}</p>
           </div>
+          {order.hotelAccommodation ? (
+            <div className="detail-list__wide">
+              <span>酒店住宿</span>
+              <p>
+                {order.hotelAccommodation.hotelName}
+                {order.hotelAccommodation.roomTypeName
+                  ? ` / ${order.hotelAccommodation.roomTypeName}`
+                  : ""}{" "}
+                · {formatDate(order.hotelAccommodation.checkInDate)} 至{" "}
+                {formatDate(order.hotelAccommodation.checkOutDate)}
+              </p>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -558,6 +607,74 @@ export function OrderDetailPage() {
               placeholder="填写酒店、房型或其他住宿安排"
             />
           </label>
+          <div className="form-section-title field--wide">结构化酒店住宿</div>
+          <div className="hotel-accommodation-editor field--wide">
+            <label className="field">
+              <span>选择酒店</span>
+              <select
+                name="hotelProductId"
+                onChange={(event) => {
+                  setEditHotelProductId(event.target.value);
+                  setEditRoomTypeId("");
+                }}
+                value={editHotelProductId}
+              >
+                <option value="">暂不选择</option>
+                {selectableHotels.map((hotel) => (
+                  <option key={hotel.id} value={hotel.id}>
+                    {hotel.name}
+                  </option>
+                ))}
+              </select>
+              {order.productSnapshot.type === "travel" &&
+              selectableHotels.length === 0 ? (
+                <small>当前疗养产品尚未配置可选酒店，请先到服务商品中配置。</small>
+              ) : null}
+            </label>
+            <label className="field">
+              <span>选择房型</span>
+              <select
+                name="roomTypeId"
+                onChange={(event) => setEditRoomTypeId(event.target.value)}
+                value={editRoomTypeId}
+              >
+                <option value="">房型待确认</option>
+                {selectableRoomTypes.map((room) => (
+                  <option key={room.id} value={room.id}>
+                    {room.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>入住日期</span>
+              <input
+                defaultValue={
+                  order.hotelAccommodation?.checkInDate ?? order.departureDate
+                }
+                name="checkInDate"
+                type="date"
+              />
+            </label>
+            <label className="field">
+              <span>离店日期</span>
+              <input
+                defaultValue={
+                  order.hotelAccommodation?.checkOutDate ?? order.returnDate
+                }
+                name="checkOutDate"
+                type="date"
+              />
+            </label>
+            <label className="field field--wide">
+              <span>酒店备注</span>
+              <input
+                defaultValue={order.hotelAccommodation?.note}
+                name="hotelNote"
+                placeholder="例如：尽量安排安静楼层"
+              />
+            </label>
+          </div>
           <label className="field field--wide">
             <span>订单专属方案</span>
             <textarea

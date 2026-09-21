@@ -6,10 +6,13 @@ import type { Database } from "./client.js";
 import {
   employees,
   groups,
+  hotelRoomDailyInventories,
+  hotelRoomTypes,
   operatorAccounts,
   operatorPagePermissions,
   personalIntents,
   personalOrders,
+  productLinkedHotels,
   productVisibleGroups,
   quotaAccounts,
   quotaTransactions,
@@ -114,6 +117,7 @@ export async function seedDatabase(db: Database): Promise<void> {
         sortOrder: product.sortOrder ?? null,
         recommended: product.recommended ?? null,
         travelDetails: product.travelDetails ?? null,
+        hotelDetails: product.hotelDetails ?? null,
         createdAt: toDate(product.createdAt),
         updatedAt: toDate(product.updatedAt),
       })),
@@ -131,6 +135,50 @@ export async function seedDatabase(db: Database): Promise<void> {
       await tx.insert(productVisibleGroups).values(visibilityRows);
     }
 
+    const linkedHotelRows = mockData.serviceProducts.flatMap((product) =>
+      (product.linkedHotelProductIds ?? []).map((hotelProductId) => ({
+        productId: product.id,
+        hotelProductId,
+      })),
+    );
+    if (linkedHotelRows.length > 0) {
+      await tx.insert(productLinkedHotels).values(linkedHotelRows);
+    }
+
+    if (mockData.hotelRoomTypes.length > 0) {
+      await tx.insert(hotelRoomTypes).values(
+        mockData.hotelRoomTypes.map((roomType) => ({
+          id: roomType.id,
+          hotelProductId: roomType.hotelProductId,
+          name: roomType.name,
+          imageUrl: roomType.imageUrl ?? null,
+          bedType: roomType.bedType ?? null,
+          capacity: roomType.capacity,
+          breakfast: roomType.breakfast ?? null,
+          area: roomType.area ?? null,
+          description: roomType.description ?? null,
+          status: roomType.status,
+          createdAt: toDate(roomType.createdAt),
+          updatedAt: toDate(roomType.updatedAt),
+        })),
+      );
+    }
+
+    if (mockData.hotelRoomDailyInventories.length > 0) {
+      await tx.insert(hotelRoomDailyInventories).values(
+        mockData.hotelRoomDailyInventories.map((inventory) => ({
+          id: inventory.id,
+          roomTypeId: inventory.roomTypeId,
+          date: inventory.date,
+          quotaPrice: inventory.quotaPrice,
+          totalInventory: inventory.totalInventory,
+          usedInventory: inventory.usedInventory,
+          isAvailable: inventory.isAvailable,
+          updatedAt: toDate(inventory.updatedAt),
+        })),
+      );
+    }
+
     await tx.insert(personalIntents).values(
       mockData.personalIntents.map((intent) => ({
         id: intent.id,
@@ -142,6 +190,8 @@ export async function seedDatabase(db: Database): Promise<void> {
         preferredTransport: intent.preferredTransport ?? null,
         needsPickup: intent.needsPickup ?? null,
         accommodationPreference: intent.accommodationPreference ?? null,
+        preferredHotelProductId: intent.preferredHotelProductId ?? null,
+        preferredHotelRoomTypeId: intent.preferredHotelRoomTypeId ?? null,
         additionalNotes: intent.additionalNotes ?? null,
         convenientContactTime: intent.convenientContactTime ?? null,
         status: intent.status,
@@ -165,6 +215,7 @@ export async function seedDatabase(db: Database): Promise<void> {
         returnDate: order.returnDate ?? null,
         transport: order.transport ?? null,
         accommodation: order.accommodation ?? null,
+        hotelAccommodation: order.hotelAccommodation ?? null,
         pickupService: order.pickupService ?? null,
         servicePlan: order.servicePlan,
         plannedQuotaDeduction: order.plannedQuotaDeduction,

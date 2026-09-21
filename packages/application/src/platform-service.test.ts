@@ -654,6 +654,37 @@ test("创建服务商品后保持未上架，并可显式上架", () => {
   assert.equal(verifyMockData(data).valid, true);
 });
 
+test("商品图文项目必须填写图片说明且不能超过100字", () => {
+  const { service } = createTestContext();
+  const baseProduct = mockData.serviceProducts.find(
+    ({ id }) => id === "product-sanya",
+  )!;
+
+  assert.throws(
+    () =>
+      service.createServiceProduct({
+        ...baseProduct,
+        name: "图文说明校验商品",
+        gallery: [{ imageUrl: "/images/test.jpg", description: " " }],
+      }),
+    /图片说明不能为空/,
+  );
+  assert.throws(
+    () =>
+      service.createServiceProduct({
+        ...baseProduct,
+        name: "图文长度校验商品",
+        gallery: [
+          {
+            imageUrl: "/images/test.jpg",
+            description: "字".repeat(101),
+          },
+        ],
+      }),
+    /图片说明不能超过100字/,
+  );
+});
+
 test("商品存在意向时仍允许下架", () => {
   const { repository, service } = createTestContext();
 
@@ -1079,6 +1110,18 @@ test("已有业务记录的商品仅允许修改展示字段，说明类字段�
   assert.equal(updated.summary, "更新后的商品简介");
   assert.equal(updated.travelDetails?.destination, "浙江·莫干山");
   assert.equal(updated.serviceDescription, "新的服务说明");
+
+  const galleryUpdated = service.updateServiceProduct({
+    ...updated,
+    productId: updated.id,
+    gallery: [
+      {
+        imageUrl: "/images/products/moganshan-facility.jpg",
+        description: "新增的设施说明，用于验证已有业务记录后仍可维护图文。",
+      },
+    ],
+  });
+  assert.equal(galleryUpdated.gallery?.[0]?.description, "新增的设施说明，用于验证已有业务记录后仍可维护图文。");
 });
 
 test("订单商品快照不会被后续商品修改影响", () => {

@@ -548,6 +548,29 @@ test("管理端按权限导出三类 Excel 完整数据", async () => {
   assert.equal(invalidRangeResponse.statusCode, 400);
 });
 
+test("后台转订单时酒店必须在疗养产品可选范围内", async () => {
+  const adminCookie = await loginAdmin();
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/admin/intents/intent-li-moganshan/orders",
+    headers: { cookie: adminCookie },
+    payload: {
+      assigneeAccountId: "operator-leader",
+      plannedQuotaDeduction: 1200,
+      servicePlan: "测试非绑定酒店拦截。",
+      departureDate: "2026-08-08",
+      returnDate: "2026-08-11",
+      hotelAccommodation: {
+        hotelProductId: "product-hotel-sanya-bay",
+        checkInDate: "2026-08-08",
+        checkOutDate: "2026-08-11",
+      },
+    },
+  });
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.json().code, "HOTEL_NOT_LINKED");
+});
+
 test("PostgreSQL API 跑通完整闭环且并发确认只扣减一次", async () => {
   const adminCookie = await loginAdmin();
   const suffix = String(Date.now());

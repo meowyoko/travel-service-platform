@@ -3,6 +3,8 @@ import {
   CircleUserRound,
   ClipboardList,
   HeartHandshake,
+  Hotel,
+  Menu,
   PackageSearch,
   Star,
   Send,
@@ -11,6 +13,7 @@ import {
   UsersRound,
   WalletCards,
 } from "lucide-react";
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import type { AdminPagePermission } from "@travel/domain";
 
@@ -26,6 +29,7 @@ const navigation: Array<{
   { to: "/employees", label: "员工管理", icon: UsersRound, permission: "employees" },
   { to: "/quotas", label: "额度管理", icon: WalletCards, permission: "quotas" },
   { to: "/products", label: "服务商品", icon: PackageSearch, permission: "products" },
+  { to: "/hotels", label: "酒店管理", icon: Hotel, permission: "hotels" },
   { to: "/intents", label: "个人意向", icon: Send, permission: "intents" },
   { to: "/orders", label: "个人订单", icon: ClipboardList, permission: "orders" },
   { to: "/reviews", label: "评价管理", icon: Star, permission: "reviews" },
@@ -34,10 +38,20 @@ const navigation: Array<{
 
 export function AdminShell() {
   const { currentOperator, hasPermission, logout } = useAdminData();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      {mobileNavOpen ? (
+        <button
+          aria-label="关闭后台导航"
+          className="mobile-nav-backdrop"
+          onClick={() => setMobileNavOpen(false)}
+          type="button"
+        />
+      ) : null}
+
+      <aside className={`sidebar${mobileNavOpen ? " sidebar--open" : ""}`}>
         <div className="brand">
           <div className="brand__mark" aria-hidden="true">
             <HeartHandshake size={22} strokeWidth={1.8} />
@@ -58,6 +72,7 @@ export function AdminShell() {
               }
               key={to}
               to={to}
+              onClick={() => setMobileNavOpen(false)}
             >
               <Icon size={19} strokeWidth={1.8} />
               <strong>{label}</strong>
@@ -87,6 +102,15 @@ export function AdminShell() {
 
       <main className="app-main">
         <header className="topbar">
+          <button
+            aria-expanded={mobileNavOpen}
+            aria-label="打开后台导航"
+            className="mobile-menu-button"
+            onClick={() => setMobileNavOpen(true)}
+            type="button"
+          >
+            <Menu size={21} />
+          </button>
           <strong>疗养服务管理平台</strong>
           <div className="topbar__status">
             <span className="status-dot" />

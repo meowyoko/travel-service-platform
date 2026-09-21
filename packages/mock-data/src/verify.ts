@@ -12,6 +12,8 @@ export interface MockDataVerificationReport {
     employees: number;
     quotaAccounts: number;
     serviceProducts: number;
+    hotelRoomTypes: number;
+    hotelRoomDailyInventories: number;
     personalIntents: number;
     personalOrders: number;
     serviceReviews: number;
@@ -57,6 +59,8 @@ export function verifyMockData(
   assertUniqueIds(data.employees, "员工");
   assertUniqueIds(data.quotaAccounts, "额度账户");
   assertUniqueIds(data.serviceProducts, "服务商品");
+  assertUniqueIds(data.hotelRoomTypes, "酒店房型");
+  assertUniqueIds(data.hotelRoomDailyInventories, "酒店日期库存");
   assertUniqueIds(data.personalIntents, "个人意向");
   assertUniqueIds(data.personalOrders, "个人订单");
   assertUniqueIds(data.serviceReviews, "服务评价");
@@ -86,6 +90,9 @@ export function verifyMockData(
   );
   const products = new Map(
     data.serviceProducts.map((product) => [product.id, product]),
+  );
+  const roomTypes = new Map(
+    data.hotelRoomTypes.map((roomType) => [roomType.id, roomType]),
   );
   const intents = new Map(
     data.personalIntents.map((intent) => [intent.id, intent]),
@@ -118,6 +125,27 @@ export function verifyMockData(
       product.type !== "travel" || product.travelDetails,
       `旅游类商品 ${product.id} 缺少旅游扩展信息`,
     );
+    assert(
+      product.type !== "hotel" || product.hotelDetails,
+      `酒店类商品 ${product.id} 缺少酒店扩展信息`,
+    );
+    for (const hotelProductId of product.linkedHotelProductIds ?? []) {
+      const hotel = products.get(hotelProductId);
+      assert(hotel?.type === "hotel", `商品 ${product.id} 绑定了无效酒店`);
+    }
+  }
+
+  for (const roomType of data.hotelRoomTypes) {
+    const hotel = products.get(roomType.hotelProductId);
+    assert(hotel?.type === "hotel", `房型 ${roomType.id} 关联的酒店商品无效`);
+  }
+
+  for (const inventory of data.hotelRoomDailyInventories) {
+    assert(roomTypes.has(inventory.roomTypeId), `库存 ${inventory.id} 的房型不存在`);
+    assert(
+      inventory.usedInventory <= inventory.totalInventory,
+      `库存 ${inventory.id} 已使用数量超过总库存`,
+    );
   }
 
   for (const intent of data.personalIntents) {
@@ -134,6 +162,14 @@ export function verifyMockData(
       isProductVisibleToGroup(product, employee.groupId),
       `意向 ${intent.id} 的商品对员工集团不可见`,
     );
+    if (intent.preferredHotelProductId) {
+      const hotel = products.get(intent.preferredHotelProductId);
+      assert(hotel?.type === "hotel", `意向 ${intent.id} 选择的酒店无效`);
+    }
+    if (intent.preferredHotelRoomTypeId) {
+      const roomType = roomTypes.get(intent.preferredHotelRoomTypeId);
+      assert(roomType, `意向 ${intent.id} 选择的房型无效`);
+    }
 
     if (intent.status === "converted_to_order") {
       assert(
@@ -166,6 +202,16 @@ export function verifyMockData(
       order.productSnapshot.productId === order.sourceProductId,
       `订单 ${order.id} 的商品快照来源不一致`,
     );
+    if (order.hotelAccommodation) {
+      const hotel = products.get(order.hotelAccommodation.hotelProductId);
+      assert(hotel?.type === "hotel", `订单 ${order.id} 的住宿酒店无效`);
+      if (order.hotelAccommodation.roomTypeId) {
+        assert(
+          roomTypes.has(order.hotelAccommodation.roomTypeId),
+          `订单 ${order.id} 的住宿房型无效`,
+        );
+      }
+    }
     assert(
       order.finalConsumedQuota ===
         order.deductedQuota - order.refundedQuota,
@@ -314,6 +360,8 @@ export function verifyMockData(
       employees: data.employees.length,
       quotaAccounts: data.quotaAccounts.length,
       serviceProducts: data.serviceProducts.length,
+      hotelRoomTypes: data.hotelRoomTypes.length,
+      hotelRoomDailyInventories: data.hotelRoomDailyInventories.length,
       personalIntents: data.personalIntents.length,
       personalOrders: data.personalOrders.length,
       serviceReviews: data.serviceReviews.length,

@@ -1,4 +1,6 @@
 import type {
+  HotelRoomDailyInventory,
+  HotelRoomType,
   PlatformData,
   ServiceProduct,
 } from "@travel/domain";
@@ -10,7 +12,16 @@ const sanyaProduct: ServiceProduct = {
   type: "travel",
   summary: "面向集团员工的海滨休养服务，可按实际需求协调交通与住宿。",
   coverImage: "/images/products/coastal-cliff.png",
-  gallery: ["/mock-images/sanya-1.jpg", "/mock-images/sanya-2.jpg"],
+  gallery: [
+    {
+      imageUrl: "/images/products/coastal-cliff.png",
+      description: "海棠湾滨海环境开阔，适合安排轻松的海边休养时光。",
+    },
+    {
+      imageUrl: "/images/products/garden-retreat.png",
+      description: "园林式休憩空间，方便员工在疗养期间散步放松。",
+    },
+  ],
   quotaReference: { min: 3000, max: 5000 },
   serviceDescription: "提供住宿协调、往返交通建议和接送站等可选服务。",
   notes: "具体安排以工作人员线下沟通确认结果为准。",
@@ -21,6 +32,7 @@ const sanyaProduct: ServiceProduct = {
   status: "published",
   sortOrder: 10,
   recommended: true,
+  linkedHotelProductIds: ["product-hotel-sanya-bay"],
   travelDetails: {
     destination: "海南·三亚",
     destinationHighlights: "气候温暖，滨海环境适合放松休养。",
@@ -33,6 +45,51 @@ const sanyaProduct: ServiceProduct = {
     serviceScope: "包含住宿协调与基础服务，不包含员工自由活动费用。",
   },
   createdAt: "2026-06-01T09:00:00+08:00",
+  updatedAt: "2026-06-18T14:30:00+08:00",
+};
+
+const sanyaHotelProduct: ServiceProduct = {
+  id: "product-hotel-sanya-bay",
+  name: "三亚海棠湾康养酒店",
+  type: "hotel",
+  summary: "海棠湾合作酒店，可单独预订，也可作为三亚疗养产品住宿选择。",
+  coverImage: "/mock-images/hotel-sanya-cover.jpg",
+  gallery: [
+    {
+      imageUrl: "/images/products/garden-retreat.png",
+      description: "酒店园林与休憩空间环境舒适，适合疗养期间散步放松。",
+    },
+    {
+      imageUrl: "/images/products/lake-retreat.png",
+      description: "酒店周边环境安静开阔，可根据实际安排体验休闲设施。",
+    },
+  ],
+  quotaReference: { min: 800, max: 1280 },
+  serviceDescription: "提供住宿预订协调、早餐和基础入住支持。",
+  notes: "房态和价格以后台维护日期库存为准。",
+  visibility: {
+    scope: "specified_groups",
+    groupIds: ["group-xingchen"],
+  },
+  status: "published",
+  sortOrder: 11,
+  recommended: false,
+  hotelDetails: {
+    city: "海南·三亚",
+    address: "三亚市海棠湾合作酒店片区",
+    starRating: "高端度假酒店",
+    facilities: "泳池、早餐厅、健身房、康养活动室",
+    trafficInfo: "距离三亚凤凰机场约45分钟车程",
+    checkInPolicy: "入住时间14:00后，离店时间12:00前",
+    paidServices: [
+      {
+        title: "接送服务",
+        description:
+          "可协助协调机场、车站或酒店周边接送，费用根据时间、人数、车型和距离另行确认。",
+      },
+    ],
+  },
+  createdAt: "2026-06-01T09:10:00+08:00",
   updatedAt: "2026-06-18T14:30:00+08:00",
 };
 
@@ -190,6 +247,109 @@ const gardenProduct: ServiceProduct = {
   updatedAt: "2026-06-24T09:30:00+08:00",
 };
 
+const hotelRoomTypes: HotelRoomType[] = [
+  {
+    id: "room-sanya-garden-king",
+    hotelProductId: "product-hotel-sanya-bay",
+    name: "园景大床房",
+    imageUrl: "/images/products/sanya-bay.png",
+    bedType: "大床",
+    capacity: 2,
+    breakfast: "含双早",
+    area: "约45平方米",
+    description: "适合个人或双人休养入住。",
+    status: "published",
+    createdAt: "2026-06-01T09:20:00+08:00",
+    updatedAt: "2026-06-01T09:20:00+08:00",
+  },
+  {
+    id: "room-sanya-sea-twin",
+    hotelProductId: "product-hotel-sanya-bay",
+    name: "海景双床房",
+    imageUrl: "/images/products/sanya-bay.png",
+    bedType: "双床",
+    capacity: 2,
+    breakfast: "含双早",
+    area: "约50平方米",
+    status: "published",
+    createdAt: "2026-06-01T09:25:00+08:00",
+    updatedAt: "2026-06-01T09:25:00+08:00",
+  },
+];
+
+const hotelRoomDailyInventories: HotelRoomDailyInventory[] = [
+  {
+    id: "inventory-sanya-garden-2026-07-12",
+    roomTypeId: "room-sanya-garden-king",
+    date: "2026-07-12",
+    quotaPrice: 900,
+    totalInventory: 8,
+    usedInventory: 1,
+    isAvailable: true,
+    updatedAt: "2026-06-01T09:30:00+08:00",
+  },
+  {
+    id: "inventory-sanya-garden-2026-07-13",
+    roomTypeId: "room-sanya-garden-king",
+    date: "2026-07-13",
+    quotaPrice: 900,
+    totalInventory: 8,
+    usedInventory: 1,
+    isAvailable: true,
+    updatedAt: "2026-06-01T09:30:00+08:00",
+  },
+  {
+    id: "inventory-sanya-garden-2026-07-14",
+    roomTypeId: "room-sanya-garden-king",
+    date: "2026-07-14",
+    quotaPrice: 900,
+    totalInventory: 8,
+    usedInventory: 1,
+    isAvailable: true,
+    updatedAt: "2026-06-01T09:30:00+08:00",
+  },
+  {
+    id: "inventory-sanya-garden-2026-07-15",
+    roomTypeId: "room-sanya-garden-king",
+    date: "2026-07-15",
+    quotaPrice: 900,
+    totalInventory: 8,
+    usedInventory: 1,
+    isAvailable: true,
+    updatedAt: "2026-06-01T09:30:00+08:00",
+  },
+  {
+    id: "inventory-sanya-garden-2026-07-16",
+    roomTypeId: "room-sanya-garden-king",
+    date: "2026-07-16",
+    quotaPrice: 900,
+    totalInventory: 8,
+    usedInventory: 1,
+    isAvailable: true,
+    updatedAt: "2026-06-01T09:30:00+08:00",
+  },
+  {
+    id: "inventory-sanya-garden-2026-07-17",
+    roomTypeId: "room-sanya-garden-king",
+    date: "2026-07-17",
+    quotaPrice: 900,
+    totalInventory: 8,
+    usedInventory: 1,
+    isAvailable: true,
+    updatedAt: "2026-06-01T09:30:00+08:00",
+  },
+  {
+    id: "inventory-sanya-garden-2026-07-18",
+    roomTypeId: "room-sanya-garden-king",
+    date: "2026-07-18",
+    quotaPrice: 900,
+    totalInventory: 8,
+    usedInventory: 1,
+    isAvailable: true,
+    updatedAt: "2026-06-01T09:30:00+08:00",
+  },
+];
+
 /**
  * 固定且可复现的第一阶段 Mock 数据。
  *
@@ -213,6 +373,7 @@ export const mockData: PlatformData = {
         "employees",
         "quotas",
         "products",
+        "hotels",
         "intents",
         "orders",
         "reviews",
@@ -228,7 +389,7 @@ export const mockData: PlatformData = {
       displayName: "林溪",
       role: "staff",
       status: "active",
-      pagePermissions: ["products", "intents", "orders"],
+      pagePermissions: ["products", "hotels", "intents", "orders"],
       createdAt: "2025-12-02T09:00:00+08:00",
       updatedAt: "2025-12-02T09:00:00+08:00",
     },
@@ -322,6 +483,7 @@ export const mockData: PlatformData = {
   ],
   serviceProducts: [
     sanyaProduct,
+    sanyaHotelProduct,
     mogaMountainProduct,
     lakeProduct,
     ancientTownProduct,
@@ -329,6 +491,8 @@ export const mockData: PlatformData = {
     gardenProduct,
     draftProduct,
   ],
+  hotelRoomTypes,
+  hotelRoomDailyInventories,
   personalIntents: [
     {
       id: "intent-zhang-sanya",
@@ -401,6 +565,18 @@ export const mockData: PlatformData = {
       returnDate: "2026-07-19",
       transport: "飞机",
       accommodation: "海棠湾合作酒店园景房",
+      hotelAccommodation: {
+        hotelProductId: "product-hotel-sanya-bay",
+        hotelName: "三亚海棠湾康养酒店",
+        roomTypeId: "room-sanya-garden-king",
+        roomTypeName: "园景大床房",
+        checkInDate: "2026-07-15",
+        checkOutDate: "2026-07-19",
+        nights: 4,
+        quotaPricePerNight: 900,
+        totalQuota: 3600,
+        address: "三亚市海棠湾合作酒店片区",
+      },
       pickupService: "三亚机场接送机",
       servicePlan: "5天住宿、往返交通协调及接送机服务。",
       plannedQuotaDeduction: 3200,

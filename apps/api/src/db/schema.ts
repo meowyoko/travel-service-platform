@@ -10,6 +10,8 @@ import {
   PRODUCT_TYPES,
   QUOTA_TRANSACTION_TYPES,
   REVIEW_STATUSES,
+  type HotelProductDetails,
+  type OrderHotelAccommodationSnapshot,
   type OrderProductSnapshot,
   type ProductVisibility,
   type TravelProductDetails,
@@ -184,7 +186,9 @@ export const serviceProducts = pgTable(
     type: productTypeEnum("type").notNull(),
     summary: text("summary").notNull(),
     coverImage: text("cover_image").notNull(),
-    gallery: jsonb("gallery").$type<string[]>(),
+    gallery: jsonb("gallery").$type<
+      Array<{ imageUrl: string; description: string }>
+    >(),
     quotaReference: jsonb("quota_reference").$type<{
       min: number;
       max?: number;
@@ -198,6 +202,7 @@ export const serviceProducts = pgTable(
     sortOrder: integer("sort_order"),
     recommended: boolean("recommended"),
     travelDetails: jsonb("travel_details").$type<TravelProductDetails>(),
+    hotelDetails: jsonb("hotel_details").$type<HotelProductDetails>(),
     createdAt,
     updatedAt,
   },
@@ -230,6 +235,75 @@ export const productVisibleGroups = pgTable(
   ],
 );
 
+export const productLinkedHotels = pgTable(
+  "product_linked_hotels",
+  {
+    productId: text("product_id")
+      .notNull()
+      .references(() => serviceProducts.id, { onDelete: "cascade" }),
+    hotelProductId: text("hotel_product_id")
+      .notNull()
+      .references(() => serviceProducts.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({
+      name: "product_linked_hotels_pk",
+      columns: [table.productId, table.hotelProductId],
+    }),
+  ],
+);
+
+export const hotelRoomTypes = pgTable(
+  "hotel_room_types",
+  {
+    id: text("id").primaryKey(),
+    hotelProductId: text("hotel_product_id")
+      .notNull()
+      .references(() => serviceProducts.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    imageUrl: text("image_url"),
+    bedType: text("bed_type"),
+    capacity: integer("capacity").notNull(),
+    breakfast: text("breakfast"),
+    area: text("area"),
+    description: text("description"),
+    status: productStatusEnum("status").notNull(),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index("hotel_room_types_hotel_index").on(table.hotelProductId),
+  ],
+);
+
+export const hotelRoomDailyInventories = pgTable(
+  "hotel_room_daily_inventories",
+  {
+    id: text("id").primaryKey(),
+    roomTypeId: text("room_type_id")
+      .notNull()
+      .references(() => hotelRoomTypes.id, { onDelete: "cascade" }),
+    date: date("date", { mode: "string" }).notNull(),
+    quotaPrice: integer("quota_price").notNull(),
+    totalInventory: integer("total_inventory").notNull(),
+    usedInventory: integer("used_inventory").notNull().default(0),
+    isAvailable: boolean("is_available").notNull().default(true),
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("hotel_room_daily_inventory_unique").on(
+      table.roomTypeId,
+      table.date,
+    ),
+    check("hotel_room_inventory_nonnegative", sql`${table.totalInventory} >= 0`),
+    check("hotel_room_used_nonnegative", sql`${table.usedInventory} >= 0`),
+    check(
+      "hotel_room_used_not_above_total",
+      sql`${table.usedInventory} <= ${table.totalInventory}`,
+    ),
+  ],
+);
+
 export const personalIntents = pgTable(
   "personal_intents",
   {
@@ -248,6 +322,14 @@ export const personalIntents = pgTable(
     preferredTransport: text("preferred_transport"),
     needsPickup: boolean("needs_pickup"),
     accommodationPreference: text("accommodation_preference"),
+    preferredHotelProductId: text("preferred_hotel_product_id").references(
+      () => serviceProducts.id,
+      { onDelete: "set null" },
+    ),
+    preferredHotelRoomTypeId: text("preferred_hotel_room_type_id").references(
+      () => hotelRoomTypes.id,
+      { onDelete: "set null" },
+    ),
     additionalNotes: text("additional_notes"),
     convenientContactTime: text("convenient_contact_time"),
     status: intentStatusEnum("status").notNull(),
@@ -295,6 +377,8 @@ export const personalOrders = pgTable(
     returnDate: date("return_date", { mode: "string" }),
     transport: text("transport"),
     accommodation: text("accommodation"),
+    hotelAccommodation:
+      jsonb("hotel_accommodation").$type<OrderHotelAccommodationSnapshot>(),
     pickupService: text("pickup_service"),
     servicePlan: text("service_plan").notNull(),
     plannedQuotaDeduction: integer("planned_quota_deduction")

@@ -79,6 +79,24 @@ export interface TravelProductDetails {
   serviceScope: string;
 }
 
+export interface HotelProductDetails {
+  city: string;
+  address: string;
+  starRating?: string;
+  facilities?: string;
+  trafficInfo?: string;
+  checkInPolicy?: string;
+  paidServices?: {
+    title: string;
+    description: string;
+  }[];
+}
+
+export interface ProductGalleryItem {
+  imageUrl: string;
+  description: string;
+}
+
 export interface ProductVisibilityAll {
   scope: "all_groups";
 }
@@ -98,7 +116,7 @@ export interface ServiceProduct {
   type: ProductType;
   summary: string;
   coverImage: string;
-  gallery?: string[];
+  gallery?: ProductGalleryItem[];
   quotaReference?: {
     min: number;
     max?: number;
@@ -110,7 +128,35 @@ export interface ServiceProduct {
   sortOrder?: number;
   recommended?: boolean;
   travelDetails?: TravelProductDetails;
+  hotelDetails?: HotelProductDetails;
+  linkedHotelProductIds?: string[];
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface HotelRoomType {
+  id: string;
+  hotelProductId: string;
+  name: string;
+  imageUrl?: string;
+  bedType?: string;
+  capacity: number;
+  breakfast?: string;
+  area?: string;
+  description?: string;
+  status: ProductStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HotelRoomDailyInventory {
+  id: string;
+  roomTypeId: string;
+  date: string;
+  quotaPrice: number;
+  totalInventory: number;
+  usedInventory: number;
+  isAvailable: boolean;
   updatedAt: string;
 }
 
@@ -124,6 +170,8 @@ export interface PersonalIntent {
   preferredTransport?: string;
   needsPickup?: boolean;
   accommodationPreference?: string;
+  preferredHotelProductId?: string;
+  preferredHotelRoomTypeId?: string;
   additionalNotes?: string;
   convenientContactTime?: string;
   status: IntentStatus;
@@ -142,7 +190,7 @@ export interface OrderProductSnapshot {
   type: ProductType;
   summary: string;
   coverImage: string;
-  gallery?: string[];
+  gallery?: ProductGalleryItem[];
   quotaReference?: {
     min: number;
     max?: number;
@@ -150,6 +198,21 @@ export interface OrderProductSnapshot {
   serviceDescription: string;
   notes: string;
   travelDetails?: TravelProductDetails;
+  hotelDetails?: HotelProductDetails;
+}
+
+export interface OrderHotelAccommodationSnapshot {
+  hotelProductId: string;
+  hotelName: string;
+  roomTypeId?: string;
+  roomTypeName?: string;
+  checkInDate: string;
+  checkOutDate: string;
+  nights: number;
+  quotaPricePerNight?: number;
+  totalQuota?: number;
+  address?: string;
+  note?: string;
 }
 
 export interface PersonalOrder {
@@ -164,6 +227,7 @@ export interface PersonalOrder {
   returnDate?: string;
   transport?: string;
   accommodation?: string;
+  hotelAccommodation?: OrderHotelAccommodationSnapshot;
   pickupService?: string;
   servicePlan: string;
   plannedQuotaDeduction: number;
@@ -214,6 +278,8 @@ export interface PlatformData {
   employees: Employee[];
   quotaAccounts: QuotaAccount[];
   serviceProducts: ServiceProduct[];
+  hotelRoomTypes: HotelRoomType[];
+  hotelRoomDailyInventories: HotelRoomDailyInventory[];
   personalIntents: PersonalIntent[];
   personalOrders: PersonalOrder[];
   serviceReviews: ServiceReview[];

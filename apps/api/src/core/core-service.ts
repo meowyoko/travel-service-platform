@@ -11,7 +11,11 @@ import type {
   UpdateIntentFollowUpRequest,
 } from "@travel/contracts";
 import type { PublicEmployee, PublicOperatorAccount } from "@travel/contracts";
-import type { OrderProductSnapshot } from "@travel/domain";
+import type {
+  HotelProductDetails,
+  OrderHotelAccommodationSnapshot,
+  OrderProductSnapshot,
+} from "@travel/domain";
 import { and, count, eq, inArray } from "drizzle-orm";
 
 import { hashPassword } from "../auth/password.js";
@@ -19,9 +23,12 @@ import type { Database } from "../db/client.js";
 import {
   employees,
   groups,
+  hotelRoomDailyInventories,
+  hotelRoomTypes,
   operatorAccounts,
   personalIntents,
   personalOrders,
+  productLinkedHotels,
   productVisibleGroups,
   quotaAccounts,
   quotaTransactions,
@@ -29,6 +36,48 @@ import {
   serviceProducts,
 } from "../db/schema.js";
 import { ApiError } from "../errors.js";
+import { normalizeProductGalleryInput } from "./product-gallery.js";
+
+function normalizeHotelDetails(
+  details: HotelProductDetails | undefined,
+): HotelProductDetails | undefined {
+  if (!details) return undefined;
+  const { paidServices: _paidServices, ...baseDetails } = details;
+  const paidServices = (details.paidServices ?? [])
+    .map((service) => ({
+      title: service.title.trim(),
+      description: service.description.trim(),
+    }))
+    .filter(
+      ({ title, description }) => title.length > 0 || description.length > 0,
+    );
+  if (
+    paidServices.some(
+      ({ title, description }) => !title || !description,
+    )
+  ) {
+    throw new ApiError(
+      400,
+      "INVALID_HOTEL_PAID_SERVICES",
+      "付费服务标题和详情说明需同时填写",
+    );
+  }
+  const normalized: HotelProductDetails = {
+    ...baseDetails,
+    city: details.city.trim(),
+    address: details.address.trim(),
+  };
+  const starRating = details.starRating?.trim();
+  const facilities = details.facilities?.trim();
+  const trafficInfo = details.trafficInfo?.trim();
+  const checkInPolicy = details.checkInPolicy?.trim();
+  if (starRating !== undefined) normalized.starRating = starRating;
+  if (facilities !== undefined) normalized.facilities = facilities;
+  if (trafficInfo !== undefined) normalized.trafficInfo = trafficInfo;
+  if (checkInPolicy !== undefined) normalized.checkInPolicy = checkInPolicy;
+  if (paidServices.length > 0) normalized.paidServices = paidServices;
+  return normalized;
+}
 
 function trimOptional(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -73,6 +122,184 @@ function assertTravelDates(
       "INVALID_TRAVEL_DATES",
       "返程日期不能早于出行日期",
     );
+  }
+}
+
+function enumerateNights(checkInDate: string, checkOutDate: string): string[] {
+  if (checkOutDate <= checkInDate) {
+    throw new ApiError(400, "INVALID_STAY_DATES", "离店日期必须晚于入住日期");
+  }
+  const nights: string[] = [];
+  const cursor = new Date(`${checkInDate}T00:00:00.000Z`);
+  const end = new Date(`${checkOutDate}T00:00:00.000Z`);
+  while (cursor < end) {
+    nights.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return nights;
+}
+
+async function buildHotelAccommodationSnapshot(
+  tx: any,
+  input:
+    | {
+        hotelProductId: string;
+        roomTypeId?: string;
+        checkInDate: string;
+        checkOutDate: string;
+        note?: string;
+      }
+    | undefined,
+): Promise<OrderHotelAccommodationSnapshot | null> {
+  if (!input) return null;
+  const nights = enumerateNights(input.checkInDate, input.checkOutDate);
+  const [hotel] = await tx
+    .select()
+    .from(serviceProducts)
+    .where(eq(serviceProducts.id, input.hotelProductId));
+  if (!hotel || hotel.type !== "hotel") {
+    throw new ApiError(404, "HOTEL_NOT_FOUND", "选择的酒店商品不存在");
+  }
+  if (hotel.status !== "published") {
+    throw new ApiError(409, "HOTEL_NOT_PUBLISHED", "未上架酒店不能用于订单");
+  }
+
+  let roomTypeName: string | undefined;
+  let quotaPricePerNight: number | undefined;
+  let totalQuota: number | undefined;
+  if (input.roomTypeId) {
+    const [roomType] = await tx
+      .select()
+      .from(hotelRoomTypes)
+      .where(eq(hotelRoomTypes.id, input.roomTypeId));
+    if (!roomType || roomType.hotelProductId !== hotel.id) {
+      throw new ApiError(404, "ROOM_TYPE_NOT_FOUND", "选择的房型不存在");
+    }
+    if (roomType.status !== "published") {
+      throw new ApiError(409, "ROOM_TYPE_NOT_AVAILABLE", "未启用房型不能用于订单");
+    }
+    const inventories = await tx
+      .select()
+      .from(hotelRoomDailyInventories)
+      .where(
+        and(
+          eq(hotelRoomDailyInventories.roomTypeId, roomType.id),
+          inArray(hotelRoomDailyInventories.date, nights),
+        ),
+      );
+    if (inventories.length !== nights.length) {
+      throw new ApiError(409, "ROOM_INVENTORY_MISSING", "所选日期缺少房态库存");
+    }
+    if (
+      inventories.some(
+        (item: { isAvailable: boolean; usedInventory: number; totalInventory: number }) =>
+          !item.isAvailable || item.usedInventory >= item.totalInventory,
+      )
+    ) {
+      throw new ApiError(409, "ROOM_INVENTORY_UNAVAILABLE", "所选日期房态库存不足");
+    }
+    roomTypeName = roomType.name;
+    totalQuota = inventories.reduce(
+      (sum: number, item: { quotaPrice: number }) => sum + item.quotaPrice,
+      0,
+    );
+    quotaPricePerNight =
+      inventories.length === 1
+        ? inventories[0]!.quotaPrice
+        : Math.round((totalQuota ?? 0) / inventories.length);
+  }
+
+  return {
+    hotelProductId: hotel.id,
+    hotelName: hotel.name,
+    ...(input.roomTypeId ? { roomTypeId: input.roomTypeId } : {}),
+    ...(roomTypeName ? { roomTypeName } : {}),
+    checkInDate: input.checkInDate,
+    checkOutDate: input.checkOutDate,
+    nights: nights.length,
+    ...(quotaPricePerNight !== undefined ? { quotaPricePerNight } : {}),
+    ...(totalQuota !== undefined ? { totalQuota } : {}),
+    ...(hotel.hotelDetails?.address ? { address: hotel.hotelDetails.address } : {}),
+    ...(input.note?.trim() ? { note: input.note.trim() } : {}),
+  };
+}
+
+async function assertHotelSelectableForProduct(
+  tx: any,
+  product: { id: string; type: string },
+  hotelProductId: string,
+): Promise<void> {
+  if (product.type === "hotel") {
+    if (hotelProductId !== product.id) {
+      throw new ApiError(
+        409,
+        "HOTEL_NOT_MATCH_PRODUCT",
+        "酒店商品订单只能选择当前酒店",
+      );
+    }
+    return;
+  }
+  if (product.type !== "travel") {
+    throw new ApiError(
+      409,
+      "HOTEL_NOT_SUPPORTED",
+      "当前商品类型不支持选择酒店住宿",
+    );
+  }
+  const [linkedHotel] = await tx
+    .select()
+    .from(productLinkedHotels)
+    .where(
+      and(
+        eq(productLinkedHotels.productId, product.id),
+        eq(productLinkedHotels.hotelProductId, hotelProductId),
+      ),
+    );
+  if (!linkedHotel) {
+    throw new ApiError(
+      409,
+      "HOTEL_NOT_LINKED",
+      "所选酒店不在当前疗养产品可选范围内",
+    );
+  }
+}
+
+async function occupyHotelInventory(
+  tx: any,
+  accommodation: OrderHotelAccommodationSnapshot | null,
+): Promise<void> {
+  if (!accommodation?.roomTypeId) return;
+  const nights = enumerateNights(
+    accommodation.checkInDate,
+    accommodation.checkOutDate,
+  );
+  const inventories = await tx
+    .select()
+    .from(hotelRoomDailyInventories)
+    .where(
+      and(
+        eq(hotelRoomDailyInventories.roomTypeId, accommodation.roomTypeId),
+        inArray(hotelRoomDailyInventories.date, nights),
+      ),
+    )
+    .for("update");
+  if (inventories.length !== nights.length) {
+    throw new ApiError(409, "ROOM_INVENTORY_MISSING", "所选日期缺少房态库存");
+  }
+  for (const inventory of inventories) {
+    if (
+      !inventory.isAvailable ||
+      inventory.usedInventory >= inventory.totalInventory
+    ) {
+      throw new ApiError(409, "ROOM_INVENTORY_UNAVAILABLE", "所选日期房态库存不足");
+    }
+    await tx
+      .update(hotelRoomDailyInventories)
+      .set({
+        usedInventory: inventory.usedInventory + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(hotelRoomDailyInventories.id, inventory.id));
   }
 }
 
@@ -269,11 +496,20 @@ export async function createServiceProduct(
       "额度参考上限不能小于下限",
     );
   }
+  const hotelDetails = normalizeHotelDetails(input.hotelDetails);
+  const gallery = normalizeProductGalleryInput(input.gallery);
   if (input.type === "travel" && !input.travelDetails) {
     throw new ApiError(
       400,
       "TRAVEL_DETAILS_REQUIRED",
       "疗养旅游类商品必须填写旅游扩展信息",
+    );
+  }
+  if (input.type === "hotel" && !hotelDetails) {
+    throw new ApiError(
+      400,
+      "HOTEL_DETAILS_REQUIRED",
+      "酒店类商品必须填写酒店扩展信息",
     );
   }
   if (
@@ -287,6 +523,16 @@ export async function createServiceProduct(
       400,
       "INVALID_TRAVEL_DETAILS",
       "旅游商品的目的地、特色、停留天数和服务范围不能为空",
+    );
+  }
+  if (
+    hotelDetails &&
+    (!hotelDetails.city || !hotelDetails.address)
+  ) {
+    throw new ApiError(
+      400,
+      "INVALID_HOTEL_DETAILS",
+      "酒店商品的城市和地址不能为空",
     );
   }
 
@@ -317,6 +563,23 @@ export async function createServiceProduct(
       );
     }
   }
+  const linkedHotelProductIds = input.linkedHotelProductIds ?? [];
+  if (linkedHotelProductIds.length > 0) {
+    const linkedHotels = await db
+      .select({ id: serviceProducts.id, type: serviceProducts.type })
+      .from(serviceProducts)
+      .where(inArray(serviceProducts.id, linkedHotelProductIds));
+    if (
+      linkedHotels.length !== linkedHotelProductIds.length ||
+      linkedHotels.some(({ type }) => type !== "hotel")
+    ) {
+      throw new ApiError(
+        400,
+        "INVALID_LINKED_HOTELS",
+        "疗养产品只能绑定已存在的酒店商品",
+      );
+    }
+  }
 
   const productId = randomUUID();
   const now = new Date();
@@ -327,7 +590,7 @@ export async function createServiceProduct(
       type: input.type,
       summary: input.summary.trim(),
       coverImage: input.coverImage.trim(),
-      gallery: input.gallery ?? null,
+      gallery: gallery ?? null,
       quotaReference: input.quotaReference ?? null,
       serviceDescription: input.serviceDescription.trim(),
       notes: input.notes.trim(),
@@ -336,12 +599,21 @@ export async function createServiceProduct(
       sortOrder: input.sortOrder ?? null,
       recommended: input.recommended ?? null,
       travelDetails: input.travelDetails ?? null,
+      hotelDetails: hotelDetails ?? null,
       createdAt: now,
       updatedAt: now,
     });
     if (groupIds.length > 0) {
       await tx.insert(productVisibleGroups).values(
         groupIds.map((groupId) => ({ productId, groupId })),
+      );
+    }
+    if (linkedHotelProductIds.length > 0) {
+      await tx.insert(productLinkedHotels).values(
+        linkedHotelProductIds.map((hotelProductId) => ({
+          productId,
+          hotelProductId,
+        })),
       );
     }
   });
@@ -465,6 +737,51 @@ export async function submitPersonalIntent(
         "预计出行时间不在商品适宜出行月份内",
       );
     }
+    if (input.preferredHotelProductId) {
+      const [hotel] = await tx
+        .select({ id: serviceProducts.id, type: serviceProducts.type })
+        .from(serviceProducts)
+        .where(eq(serviceProducts.id, input.preferredHotelProductId));
+      if (!hotel || hotel.type !== "hotel") {
+        throw new ApiError(404, "HOTEL_NOT_FOUND", "选择的酒店不存在");
+      }
+      if (product.type === "travel") {
+        const [linkedHotel] = await tx
+          .select()
+          .from(productLinkedHotels)
+          .where(
+            and(
+              eq(productLinkedHotels.productId, product.id),
+              eq(
+                productLinkedHotels.hotelProductId,
+                input.preferredHotelProductId,
+              ),
+            ),
+          );
+        if (!linkedHotel) {
+          throw new ApiError(
+            409,
+            "HOTEL_NOT_LINKED",
+            "所选酒店不在当前疗养产品可选范围内",
+          );
+        }
+      } else if (product.type === "hotel" && hotel.id !== product.id) {
+        throw new ApiError(
+          409,
+          "HOTEL_NOT_MATCH_PRODUCT",
+          "酒店商品意向只能选择当前酒店",
+        );
+      }
+      if (input.preferredHotelRoomTypeId) {
+        const [roomType] = await tx
+          .select()
+          .from(hotelRoomTypes)
+          .where(eq(hotelRoomTypes.id, input.preferredHotelRoomTypeId));
+        if (!roomType || roomType.hotelProductId !== hotel.id) {
+          throw new ApiError(404, "ROOM_TYPE_NOT_FOUND", "选择的房型不存在");
+        }
+      }
+    }
 
     const now = new Date();
     await tx.insert(personalIntents).values({
@@ -479,6 +796,8 @@ export async function submitPersonalIntent(
       accommodationPreference: trimOptional(
         input.accommodationPreference,
       ),
+      preferredHotelProductId: input.preferredHotelProductId ?? null,
+      preferredHotelRoomTypeId: input.preferredHotelRoomTypeId ?? null,
       additionalNotes: trimOptional(input.additionalNotes),
       convenientContactTime: trimOptional(input.convenientContactTime),
       status: "pending_follow_up",
@@ -715,7 +1034,21 @@ export async function convertIntentToOrder(
       ...(product.travelDetails
         ? { travelDetails: product.travelDetails }
         : {}),
+      ...(product.hotelDetails
+        ? { hotelDetails: product.hotelDetails }
+        : {}),
     };
+    if (input.hotelAccommodation) {
+      await assertHotelSelectableForProduct(
+        tx,
+        product,
+        input.hotelAccommodation.hotelProductId,
+      );
+    }
+    const hotelAccommodation = await buildHotelAccommodationSnapshot(
+      tx,
+      input.hotelAccommodation,
+    );
     const now = new Date();
     const orderNumber = `PO-${now
       .toISOString()
@@ -734,6 +1067,7 @@ export async function convertIntentToOrder(
       returnDate: input.returnDate,
       transport: trimOptional(input.transport),
       accommodation: trimOptional(input.accommodation),
+      hotelAccommodation,
       pickupService: trimOptional(input.pickupService),
       servicePlan: input.servicePlan.trim(),
       plannedQuotaDeduction: input.plannedQuotaDeduction,
@@ -806,6 +1140,7 @@ export async function confirmPersonalOrder(
     }
 
     const now = new Date();
+    await occupyHotelInventory(tx, order.hotelAccommodation ?? null);
     const amount = order.plannedQuotaDeduction;
     const balanceAfter = account.availableBalance - amount;
     await tx

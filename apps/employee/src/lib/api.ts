@@ -1,6 +1,8 @@
 import type {
   PersonalIntentDto,
   PersonalOrderDto,
+  HotelRoomDailyInventoryDto,
+  HotelRoomTypeDto,
   PublicEmployee,
   QuotaTransactionDto,
   ServiceProductDto,
@@ -24,6 +26,8 @@ export interface EmployeeContextData {
   } | null;
   quotaAccount: QuotaAccount | null;
   visibleProducts: ServiceProductDto[];
+  hotelRoomTypes: HotelRoomTypeDto[];
+  hotelRoomDailyInventories: HotelRoomDailyInventoryDto[];
   personalIntents: PersonalIntentDto[];
   personalOrders: PersonalOrderDto[];
   personalReviews: ServiceReviewDto[];

@@ -39,6 +39,8 @@ const emptyData: AdminPlatformData = {
   employees: [],
   quotaAccounts: [],
   serviceProducts: [],
+  hotelRoomTypes: [],
+  hotelRoomDailyInventories: [],
   personalIntents: [],
   personalOrders: [],
   serviceReviews: [],

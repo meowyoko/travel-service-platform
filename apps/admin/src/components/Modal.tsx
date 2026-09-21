@@ -6,6 +6,7 @@ interface ModalProps extends PropsWithChildren {
   title: string;
   description?: string;
   footer?: ReactNode;
+  className?: string;
   onClose(): void;
 }
 
@@ -14,6 +15,7 @@ export function Modal({
   title,
   description,
   footer,
+  className,
   onClose,
   children,
 }: ModalProps) {
@@ -25,7 +27,7 @@ export function Modal({
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
         aria-modal="true"
-        className="modal"
+        className={className ? `modal ${className}` : "modal"}
         role="dialog"
         onMouseDown={(event) => event.stopPropagation()}
       >

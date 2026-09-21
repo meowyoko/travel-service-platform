@@ -26,5 +26,8 @@ export function createOrderProductSnapshot(
     ...(product.travelDetails
       ? { travelDetails: structuredClone(product.travelDetails) }
       : {}),
+    ...(product.hotelDetails
+      ? { hotelDetails: structuredClone(product.hotelDetails) }
+      : {}),
   };
 }
